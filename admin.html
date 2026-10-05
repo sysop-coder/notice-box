@@ -316,8 +316,14 @@
     }
 
     const newStatus = isCloseCase ? '已結案' : null;
-    closeReplyModal();
-    executeUpdateRequest(g_activeRowIndex, newStatus, replyNotes, null, sendEmailToUser);
+    
+    // 【修正重點】先把行號存起來，以免被 closeReplyModal 清掉
+    const targetRowIndex = g_activeRowIndex; 
+    
+    closeReplyModal(); // 這裡會關閉視窗並把 g_activeRowIndex 清空為 null
+    
+    // 使用存起來的 targetRowIndex 發送請求
+    executeUpdateRequest(targetRowIndex, newStatus, replyNotes, null, sendEmailToUser);
   }
 
   // 觸發轉派

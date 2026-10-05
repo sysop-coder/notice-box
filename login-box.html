@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>豐東國中 - 管理後台</title>
+  <style>
+    body { font-family: "Microsoft JhengHei", sans-serif; padding: 24px; background: #edf2f7; font-size: 16px; color: #2d3748; }
+    .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+    h2 { font-size: 24px; color: #2b6cb0; margin-top: 0; }
+    input[type="password"] { padding: 12px 14px; font-size: 16px; border: 1.5px solid #cbd5e0; border-radius: 6px; width: 260px; }
+    button { padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; background-color: #3182ce; color: white; cursor: pointer; }
+    button:hover { background-color: #2b6cb0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 15px; }
+    th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; vertical-align: top; }
+    th { background: #f7fafc; color: #4a5568; font-size: 16px; }
+    .status-badge { padding: 4px 10px; border-radius: 14px; font-size: 13px; font-weight: bold; color: white; background: #3182ce; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>民意信箱 - 管理後台</h2>
+  <div id="login-box">
+    <input type="password" id="adminPwd" placeholder="輸入管理密碼">
+    <button onclick="loadAdminCases()" id="loginBtn">登入管理</button>
+  </div>
+</div>
+
+<div class="card hidden" id="data-container">
+  <table id="caseTable">
+    <thead>
+      <tr>
+        <th style="width: 140px;">案件編號</th>
+        <th style="width: 110px;">日期</th>
+        <th style="width: 160px;">處室 / 議題</th>
+        <th>主旨與內容</th>
+        <th style="width: 150px;">陳情人資訊</th>
+        <th style="width: 90px;">狀態</th>
+        <th style="width: 140px;">操作</th>
+      </tr>
+    </thead>
+    <tbody id="caseBody"></tbody>
+  </table>
+</div>
+
+<script>
+  // ================= ⚠️ 請修改為您的 GAS API 網址 ⚠️ =================
+  const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
+
+  let globalPwd = "";
+
+  async function loadAdminCases() {
+    const pwdInput = document.getElementById('adminPwd').value;
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true; btn.innerText = "載入中...";
+
+    try {
+      const res = await fetch(`${API_URL}?action=adminFetchCases&password=${encodeURIComponent(pwdInput)}`);
+      const json = await res.json();
+      
+      if (json.success) {
+        globalPwd = pwdInput;
+        document.getElementById('login-box').style.display = 'none';
+        document.getElementById('data-container').classList.remove('hidden');
+        renderTable(json.data);
+      } else { alert("登入失敗: " + json.message); btn.disabled = false; btn.innerText = "登入管理"; }
+    } catch (e) { alert("連線錯誤"); btn.disabled = false; btn.innerText = "登入管理"; }
+  }
+
+  function renderTable(cases) {
+    const tbody = document.getElementById('caseBody');
+    tbody.innerHTML = cases.map(c => `
+      <tr>
+        <td><strong style="color:#2b6cb0;">${c.caseId}</strong></td>
+        <td>${c.createdAt}</td>
+        <td><strong>${c.dept}</strong><br><small>${c.issue}</small></td>
+        <td style="max-width:300px;"><strong>${c.subject}</strong><br><small style="color:#4a5568;">${c.content}</small></td>
+        <td><strong>${c.name}</strong><br>${c.phone}</td>
+        <td><span class="status-badge">${c.status}</span></td>
+        <td>
+          <button onclick="updateStatus(${c.rowIndex}, '處理中')" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%;">處理中</button>
+          <button onclick="updateStatus(${c.rowIndex}, '已結案')" style="padding:6px; font-size:13px; background:#38a169; width:100%;">結案回覆</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function updateStatus(rowIndex, status) {
+    const note = prompt("請輸入處理紀錄或給民眾的回覆說明 (將會顯示於前台)：");
+    if (note === null) return;
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminUpdateCase", password: globalPwd, rowIndex: rowIndex, status: status, replyNotes: note }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+      if (json.success) { alert("更新成功"); loadAdminCases(); } else { alert("錯誤: " + json.message); }
+    } catch (e) { alert("更新失敗，請檢查網路連線。"); }
+  }
+</script>
+</body>
+</html>

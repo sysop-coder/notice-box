@@ -24,7 +24,8 @@
     /* 轉派選單 */
     .reassign-select { margin-top: 8px; width: 100%; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 13px; }
     
-    .hidden { display: none; }
+    /* 確保隱藏優先權最高 */
+    .hidden { display: none !important; }
     #loader { text-align: center; font-size: 18px; color: #718096; padding: 50px; }
     
     /* 權限阻擋畫面 */
@@ -142,14 +143,14 @@
 </div>
 
 <script>
-  // ================= ⚠️ 已補正 https:// 協定 ⚠️ =================
+  // ================= ⚠️ 請修改為您的 GAS API 網址 ⚠️ =================
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec";
   // 請修改為您的 SSO 登入頁面網址
   const SSO_LOGIN_URL = "https://sysop-coder.github.io/sso/"; 
 
   let g_sessionKey = sessionStorage.getItem('adminSessionKey');
   let g_availableDepts = [];
-  let g_cases = []; // 快取當前案件清單供彈窗呼叫
+  let g_cases = [];
   let g_activeRowIndex = null;
 
   window.onload = async function() {
@@ -235,8 +236,6 @@
     const tbody = document.getElementById('caseBody');
     tbody.innerHTML = cases.map(c => {
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
-      
-      // 已結案案件，按鈕文字變更為「修改回覆內容 / 重寄信」
       const isClosed = (c.status === '已結案');
       const actionBtnText = isClosed ? '修改回覆內容 / 重寄信' : '結案並填寫回覆';
       
@@ -261,7 +260,7 @@
     }).join('');
   }
 
-  // 1. 標記處理中：直接更新狀態，不彈窗
+  // 1. 標記處理中
   async function markProcessing(rowIndex) {
     executeUpdateRequest(rowIndex, '處理中', null, null, false);
   }
@@ -271,7 +270,6 @@
     const c = g_cases.find(x => x.rowIndex === rowIndex);
     if (!c) return;
 
-    // 檢核：待驗證案件提示阻擋
     if (c.status === '待驗證') {
       alert('此案件尚未完成 Email 驗證，無法進行結案回覆！');
       return;
@@ -279,7 +277,6 @@
 
     g_activeRowIndex = rowIndex;
 
-    // 填入案件資訊
     document.getElementById('modalCaseId').innerText = c.caseId;
     document.getElementById('modalStatusBadge').innerHTML = `<span class="status-badge tag-${c.status}">${c.status}</span>`;
     document.getElementById('modalDept').innerText = c.dept;
@@ -287,11 +284,8 @@
     document.getElementById('modalSubject').innerText = c.subject;
     document.getElementById('modalContent').innerText = c.content;
     document.getElementById('modalPetitionerEmail').innerText = c.email || '未提供信箱';
-
-    // 帶入先前的回覆紀錄（供修改補充）
     document.getElementById('modalReplyText').value = c.reply || '';
 
-    // 若陳情人無 Email 則停用勾選
     const sendEmailCheckbox = document.getElementById('modalSendEmail');
     if (!c.email) {
       sendEmailCheckbox.checked = false;
@@ -301,7 +295,6 @@
       sendEmailCheckbox.checked = true;
     }
 
-    // 顯示 Modal
     document.getElementById('replyModal').classList.remove('hidden');
   }
 
@@ -310,7 +303,7 @@
     g_activeRowIndex = null;
   }
 
-  // 提交 Modal 中的處理回覆
+  // 提交 Modal 中的回覆
   async function submitModalReply(isCloseCase) {
     if (!g_activeRowIndex) return;
     const replyNotes = document.getElementById('modalReplyText').value.trim();
@@ -356,7 +349,7 @@
       });
       const json = await res.json();
       if (json.success) {
-        fetchCases(); // 重新整理表格
+        fetchCases();
       } else {
         alert("更新失敗: " + json.message);
       }

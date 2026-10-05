@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>豐東國中 - 民意信箱</title>
+  <style>
+    /* 此處保留您要求的放大字體 CSS 樣式 */
+    body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background-color: #f0f4f8; margin: 0; padding: 24px; color: #2d3748; font-size: 18px; line-height: 1.7; }
+    .container { max-width: 860px; margin: 0 auto; background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); overflow: hidden; }
+    .tab-header { display: flex; background: #edf2f7; border-bottom: 2px solid #cbd5e0; }
+    .tab-btn { flex: 1; padding: 18px 20px; text-align: center; font-size: 20px; font-weight: bold; color: #4a5568; cursor: pointer; border: none; background: transparent; transition: 0.2s; }
+    .tab-btn.active { background: #fff; color: #2b6cb0; border-bottom: 4px solid #3182ce; }
+    .tab-content { padding: 36px; }
+    h2 { font-size: 26px; color: #2b6cb0; margin-top: 0; padding-bottom: 12px; border-bottom: 2px solid #ebf8ff; }
+    .notice-box { background: #fffaf0; border: 1px solid #feebc8; padding: 20px; border-radius: 8px; font-size: 18px; line-height: 1.8; }
+    .law-box { background: #edf2f7; padding: 16px; margin-top: 14px; border-radius: 6px; font-size: 16px; line-height: 1.7; }
+    .form-group { margin-bottom: 22px; }
+    label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 18px; }
+    .req { color: #e53e3e; }
+    .hint { font-size: 15px; color: #718096; font-weight: normal; }
+    input[type="text"], input[type="email"], select, textarea { width: 100%; padding: 14px 16px; border: 1.5px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 18px; font-family: inherit; }
+    textarea { height: 160px; resize: vertical; }
+    .btn { background-color: #3182ce; color: white; padding: 15px 32px; border: none; border-radius: 6px; font-size: 19px; font-weight: bold; cursor: pointer; }
+    .btn:hover { background-color: #2b6cb0; }
+    .btn-secondary { background-color: #718096; margin-right: 12px; }
+    .hidden { display: none; }
+    .result-card { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin-top: 24px; }
+    .result-row { display: flex; margin-bottom: 16px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px; }
+    .result-label { width: 140px; font-weight: bold; color: #4a5568; font-size: 18px; }
+    .result-value { flex: 1; font-size: 18px; }
+    .status-tag { display: inline-block; padding: 6px 14px; border-radius: 16px; font-weight: bold; font-size: 15px; color: white; }
+    .reply-box { background: #fff; border-left: 5px solid #38a169; padding: 16px 20px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="tab-header">
+    <button class="tab-btn active" id="tab-write-btn" onclick="switchTab('write')">我要寫信（投遞意見）</button>
+    <button class="tab-btn" id="tab-query-btn" onclick="switchTab('query')">案件進度查詢</button>
+  </div>
+
+  <div class="tab-content">
+    <!-- 投遞意見表單 -->
+    <div id="section-write">
+      <div id="step-rules">
+        <h2>豐東國中民意信箱 - 使用須知</h2>
+        <div class="notice-box">
+          <p>親愛的家長、同學及民眾，歡迎使用本校民意信箱。填寫前請先詳閱下列作業方式：</p>
+          <ol>
+            <li><strong>信件寄送程序：</strong>請據實填寫基本資料、聯絡電話、Email。送出後系統將寄發「確認信函」至您的信箱。</li>
+            <li><strong>雙重確認機制：</strong>請務必於<strong> 2 天內</strong>點選確認信中的連結。若逾期未點選，將視為無效郵件予以刪除。</li>
+            <li><strong>自動分派機制：</strong>完成確認信驗證後，系統將直接依您所選的議題類別，自動分派予主責處室。</li>
+          </ol>
+        </div>
+        <div style="margin-top: 30px; text-align: center;">
+          <button class="btn" onclick="goToForm()">我同意上述規範，進入下一步</button>
+        </div>
+      </div>
+
+      <div id="step-form" class="hidden">
+        <h2>豐東民意信箱 - 意見函投遞</h2>
+        <form id="mailForm" onsubmit="handleFormSubmit(event)">
+          <div class="form-group"><label>真實姓名 <span class="req">*</span></label><input type="text" id="name" required></div>
+          <div class="form-group"><label>聯絡電話 <span class="req">*</span> <span class="hint">(日後查詢之憑證)</span></label><input type="text" id="phone" required></div>
+          <div class="form-group"><label>電子信箱 <span class="req">*</span></label><input type="email" id="email" required></div>
+          <div class="form-group"><label>身分類別 <span class="req">*</span></label><select id="identity" required><option value="">載入中...</option></select></div>
+          <div class="form-group"><label>特定議題類別 <span class="req">*</span></label><select id="issue" required><option value="">載入中...</option></select></div>
+          <div class="form-group"><label>信件主旨 <span class="req">*</span></label><input type="text" id="subject" required></div>
+          <div class="form-group"><label>具體陳情內容 <span class="req">*</span></label><textarea id="content" required></textarea></div>
+          <div style="text-align: right; margin-top: 25px;">
+            <button type="button" class="btn btn-secondary" onclick="backToRules()">回上一步</button>
+            <button type="submit" class="btn" id="submitBtn">送出陳情信件</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="step-success" class="hidden" style="text-align: center; padding: 40px 0;">
+        <h3 style="color: #38a169; font-size: 26px;">已成功送出資料！</h3>
+        <p style="font-size: 20px;">案件編號：<strong id="displayCaseId" style="color: #2b6cb0;"></strong></p>
+        <p style="color: #e53e3e; font-weight: bold;">請務必立即前往您的電子信箱收信，並點選「確認信件」連結，本案方算正式受理！</p>
+      </div>
+    </div>
+
+    <!-- 查詢區塊 -->
+    <div id="section-query" class="hidden">
+      <h2>案件進度線上查詢</h2>
+      <form onsubmit="handleQuerySubmit(event)">
+        <div class="form-group"><label>案件編號 <span class="req">*</span></label><input type="text" id="queryCaseId" required></div>
+        <div class="form-group"><label>聯絡電話 <span class="req">*</span></label><input type="text" id="queryPhone" required></div>
+        <button type="submit" class="btn" id="queryBtn" style="width: 100%;">查詢案件進度</button>
+      </form>
+
+      <div id="queryResultArea" class="hidden">
+        <div class="result-card">
+          <div class="result-row"><div class="result-label">案件編號</div><div class="result-value" id="resCaseId" style="color:#2b6cb0; font-weight:bold;"></div></div>
+          <div class="result-row"><div class="result-label">立案日期</div><div class="result-value" id="resDate"></div></div>
+          <div class="result-row"><div class="result-label">主責處室</div><div class="result-value" id="resDept"></div></div>
+          <div class="result-row"><div class="result-label">當前狀態</div><div class="result-value"><span id="resStatusTag" class="status-tag" style="background:#3182ce;"></span><div id="resStatusDesc" style="margin-top:8px; font-size:16px;"></div></div></div>
+          <div class="result-row" style="border-bottom:none;"><div class="result-label">回覆說明</div><div class="result-value"><div class="reply-box" id="resReply"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ================= ⚠️ 請修改為您的 GAS API 網址 ⚠️ =================
+  const API_URL = "https://script.google.com/macros/s/AKfyc.../exec"; 
+
+  // 初始化取得下拉選單
+  window.onload = async function() {
+    try {
+      const res = await fetch(API_URL + "?action=getDropdownData");
+      const json = await res.json();
+      if(json.success) {
+        document.getElementById('identity').innerHTML = '<option value="">請選擇</option>' + json.data.identities.map(i => `<option value="${i}">${i}</option>`).join('');
+        document.getElementById('issue').innerHTML = '<option value="">請選擇</option>' + json.data.issues.map(i => `<option value="${i}">${i}</option>`).join('');
+      }
+    } catch(e) { alert("選單載入失敗，請稍後再試。"); }
+  };
+
+  function switchTab(tab) {
+    document.getElementById('section-write').classList.toggle('hidden', tab !== 'write');
+    document.getElementById('section-query').classList.toggle('hidden', tab !== 'query');
+    document.getElementById('tab-write-btn').classList.toggle('active', tab === 'write');
+    document.getElementById('tab-query-btn').classList.toggle('active', tab === 'query');
+  }
+  function goToForm() { document.getElementById('step-rules').classList.add('hidden'); document.getElementById('step-form').classList.remove('hidden'); }
+  function backToRules() { document.getElementById('step-form').classList.add('hidden'); document.getElementById('step-rules').classList.remove('hidden'); }
+
+  // 送出表單 (POST JSON API)
+  async function handleFormSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.innerText = '送出中...';
+
+    const formData = {
+      name: document.getElementById('name').value, phone: document.getElementById('phone').value,
+      email: document.getElementById('email').value, identity: document.getElementById('identity').value,
+      issue: document.getElementById('issue').value, subject: document.getElementById('subject').value,
+      content: document.getElementById('content').value
+    };
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "submitForm", data: formData }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" } // 避免 CORS 預檢請求
+      });
+      const json = await res.json();
+      
+      if (json.success) {
+        document.getElementById('step-form').classList.add('hidden');
+        document.getElementById('step-success').classList.remove('hidden');
+        document.getElementById('displayCaseId').innerText = json.caseId;
+      } else { alert("錯誤: " + json.message); btn.disabled = false; btn.innerText = '送出陳情信件'; }
+    } catch (e) { alert("網路連線失敗！"); btn.disabled = false; btn.innerText = '送出陳情信件'; }
+  }
+
+  // 查詢進度 (GET JSON API)
+  async function handleQuerySubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('queryBtn');
+    btn.disabled = true; btn.innerText = '查詢中...';
+    
+    const cid = document.getElementById('queryCaseId').value;
+    const phone = document.getElementById('queryPhone').value;
+
+    try {
+      const res = await fetch(`${API_URL}?action=queryCaseStatus&caseId=${encodeURIComponent(cid)}&phone=${encodeURIComponent(phone)}`);
+      const json = await res.json();
+      btn.disabled = false; btn.innerText = '查詢案件進度';
+
+      if (json.success) {
+        const d = json.data;
+        document.getElementById('resCaseId').innerText = d.caseId;
+        document.getElementById('resDate').innerText = d.createdAt;
+        document.getElementById('resDept').innerText = d.dept;
+        document.getElementById('resStatusTag').innerText = d.status;
+        document.getElementById('resStatusDesc').innerText = d.statusDesc;
+        document.getElementById('resReply').innerHTML = d.reply.replace(/\n/g, '<br>');
+        document.getElementById('queryResultArea').classList.remove('hidden');
+      } else { alert(json.message); document.getElementById('queryResultArea').classList.add('hidden'); }
+    } catch(e) { alert("查詢失敗"); btn.disabled = false; btn.innerText = '查詢案件進度'; }
+  }
+</script>
+</body>
+</html>

@@ -5,54 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>豐東國中 - 民意信箱管理後台</title>
   <style>
-    body { font-family: "Microsoft JhengHei", sans-serif; padding: 24px; background: #edf2f7; font-size: 16px; color: #2d3748; margin: 0; }
+    body { font-family: "Microsoft JhengHei", sans-serif; padding: 24px; background: #edf2f7; font-size: 16px; margin: 0; }
     .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     h2 { font-size: 24px; color: #2b6cb0; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
     .user-badge { font-size: 14px; background: #ebf8ff; color: #2b6cb0; padding: 6px 12px; border-radius: 20px; font-weight: bold; border: 1px solid #bee3f8; }
-    button { padding: 10px 16px; font-size: 15px; border: none; border-radius: 6px; background-color: #3182ce; color: white; cursor: pointer; transition: 0.2s; }
+    button { padding: 10px 14px; font-size: 14px; border: none; border-radius: 6px; background-color: #3182ce; color: white; cursor: pointer; transition: 0.2s; }
     button:hover { background-color: #2b6cb0; }
-    .btn-outline { background: white; color: #4a5568; border: 1px solid #cbd5e0; }
     table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 15px; }
     th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; vertical-align: top; }
     th { background: #f7fafc; color: #4a5568; font-weight: bold; }
-    .status-badge { padding: 4px 10px; border-radius: 14px; font-size: 13px; font-weight: bold; color: white; background: #3182ce; display: inline-block; }
+    .status-badge { padding: 4px 10px; border-radius: 14px; font-size: 13px; font-weight: bold; color: white; background: #3182ce; display: inline-block; margin-bottom: 6px; }
     .tag-待驗證 { background: #feebc8; color: #c05621; }
     .tag-已成案 { background: #bee3f8; color: #2b6cb0; }
     .tag-處理中 { background: #e9d8fd; color: #6b46c1; }
     .tag-已結案 { background: #c6f6d5; color: #22543d; }
-    
-    /* 轉派選單 */
-    .reassign-select { margin-top: 8px; width: 100%; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 13px; }
-    
+    .sla-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-weight: bold; margin-top: 6px; }
+    .rating-box { margin-top: 10px; padding: 8px; background: #f0fff4; border: 1px solid #c6f6d5; border-radius: 4px; font-size: 14px; color: #276749; }
     .hidden { display: none; }
     #loader { text-align: center; font-size: 18px; color: #718096; padding: 50px; }
-    
-    /* 權限阻擋畫面 */
-    .error-card { max-width: 500px; margin: 80px auto; text-align: center; padding: 40px; border-top: 5px solid #e53e3e; }
   </style>
 </head>
 <body>
 
-<!-- 載入中畫面 -->
 <div id="loader"><h2>系統驗證與載入中，請稍候...</h2></div>
 
-<!-- 無權限阻擋畫面 -->
-<div class="card error-card hidden" id="unauthorized-card">
-  <h2 style="color: #e53e3e; justify-content: center; margin-bottom: 20px;">存取權限受限</h2>
-  <p id="unauth-msg" style="font-size: 17px; line-height: 1.6; margin-bottom: 30px;"></p>
-  <button onclick="reloginSSO()">切換帳號重新登入</button>
-</div>
-
-<!-- 主管理介面 -->
 <div class="hidden" id="main-ui">
   <div class="card">
-    <h2>
-      豐東國中民意信箱 - 管理後台
-      <span class="user-badge" id="userInfo"></span>
-    </h2>
-    <div style="text-align: right;">
-      <button class="btn-outline" onclick="logout()">安全登出</button>
-    </div>
+    <h2>豐東國中民意信箱 - 管理後台<span class="user-badge" id="userInfo"></span></h2>
+    <div style="text-align: right;"><button onclick="logout()" style="background:white; color:#4a5568; border:1px solid #cbd5e0;">安全登出</button></div>
   </div>
 
   <div class="card">
@@ -60,12 +40,12 @@
       <thead>
         <tr>
           <th style="width: 130px;">案件編號</th>
-          <th style="width: 100px;">日期</th>
+          <th style="width: 110px;">立案與時效</th>
           <th style="width: 140px;">主責處室</th>
           <th>主旨與內容</th>
-          <th style="width: 160px;">陳情人資訊</th>
-          <th style="width: 90px;">狀態</th>
-          <th style="width: 140px;">操作 (處理/結案)</th>
+          <th style="width: 150px;">陳情人資訊</th>
+          <th style="width: 100px;">狀態</th>
+          <th style="width: 150px;">操作</th>
         </tr>
       </thead>
       <tbody id="caseBody"></tbody>
@@ -74,165 +54,155 @@
 </div>
 
 <script>
-  // ================= ⚠️ 請修改為您的 GAS API 網址 ⚠️ =================
+  // ⚠️ 請填入民意信箱 GAS URL 與 SSO URL
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec";
-  // 請修改為您的 SSO 登入頁面網址
   const SSO_LOGIN_URL = "https://sysop-coder.github.io/sso/"; 
 
   let g_sessionKey = sessionStorage.getItem('adminSessionKey');
   let g_availableDepts = [];
+  let g_casesData = []; // 儲存案件全域變數，供列印使用
 
   window.onload = async function() {
-    // 1. 檢查網址是否有 token
     const urlParams = new URLSearchParams(window.location.search);
     const ssoToken = urlParams.get('token');
-
     if (ssoToken) {
-      // 抹除網址上的 Token，避免 F5 重新整理報錯
       window.history.replaceState({}, document.title, window.location.pathname);
       await processSSOToken(ssoToken);
-    } else if (g_sessionKey) {
-      // 已經有 Session，直接撈取資料
-      await fetchCases();
-    } else {
-      // 未登入，強制導向 SSO
-      reloginSSO();
-    }
+    } else if (g_sessionKey) fetchCases();
+    else reloginSSO();
   };
 
   function reloginSSO() {
     sessionStorage.removeItem('adminSessionKey');
-    const returnUrl = encodeURIComponent(window.location.origin + window.location.pathname);
-    window.location.href = `${SSO_LOGIN_URL}?redirect=${returnUrl}`;
+    window.location.href = `${SSO_LOGIN_URL}?redirect=${encodeURIComponent(window.location.origin + window.location.pathname)}`;
   }
+  function logout() { sessionStorage.removeItem('adminSessionKey'); window.location.reload(); }
 
-  function logout() {
-    sessionStorage.removeItem('adminSessionKey');
-    window.location.reload();
-  }
-
-  // 向 GAS 驗證 Token
   async function processSSOToken(token) {
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "verifySSO", token: token }),
-        headers: { "Content-Type": "text/plain;charset=utf-8" }
-      });
-      const json = await res.json();
-      
-      if (json.success) {
-        g_sessionKey = json.sessionKey;
-        sessionStorage.setItem('adminSessionKey', g_sessionKey);
-        await fetchCases();
-      } else if (json.message === "NOT_AUTHORIZED") {
-        document.getElementById('loader').classList.add('hidden');
-        document.getElementById('unauthorized-card').classList.remove('hidden');
-        document.getElementById('unauth-msg').innerHTML = `您好，<strong>${json.displayName || '同仁'}</strong>（${json.email}）：<br>您的帳號目前<strong>尚未具備</strong>本信箱的管理查核權限。如需處理陳情案件，請聯繫校長室新增授權。`;
-      } else {
-        alert("登入驗證失敗：" + json.message);
-        reloginSSO();
-      }
-    } catch (e) {
-      alert("網路連線錯誤，請重試。");
-    }
+    const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "verifySSO", token: token }), headers: { "Content-Type": "text/plain;charset=utf-8" }});
+    const json = await res.json();
+    if (json.success) { g_sessionKey = json.sessionKey; sessionStorage.setItem('adminSessionKey', g_sessionKey); fetchCases(); } 
+    else { alert("權限不足或驗證失敗"); reloginSSO(); }
   }
 
-  // 抓取案件清單
   async function fetchCases() {
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "adminFetchCases", sessionKey: g_sessionKey }),
-        headers: { "Content-Type": "text/plain;charset=utf-8" }
-      });
-      const json = await res.json();
-
-      if (json.success) {
-        g_availableDepts = json.availableDepts;
-        document.getElementById('loader').classList.add('hidden');
-        document.getElementById('main-ui').classList.remove('hidden');
-        document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
-        renderTable(json.data);
-      } else {
-        alert("Session 已過期，請重新登入。");
-        reloginSSO();
-      }
-    } catch (e) {
-      alert("無法取得資料。");
-    }
+    const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "adminFetchCases", sessionKey: g_sessionKey }), headers: { "Content-Type": "text/plain;charset=utf-8" }});
+    const json = await res.json();
+    if (json.success) {
+      g_availableDepts = json.availableDepts;
+      g_casesData = json.data;
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('main-ui').classList.remove('hidden');
+      document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
+      renderTable(json.data);
+    } else { reloginSSO(); }
   }
 
-  // 渲染表格 (包含轉派選單)
+  // SLA 時效計算邏輯
+  function getSLABadge(dateStr, status) {
+    if (status === '已結案') return '<span style="color:#718096; font-size:13px; font-weight:bold;">⚪ 已結案</span>';
+    const createDate = new Date(dateStr.replace(/-/g, '/'));
+    const diffDays = Math.abs(new Date() - createDate) / (1000 * 60 * 60 * 24);
+    if (diffDays <= 2) return '<span class="sla-badge" style="background:#c6f6d5; color:#22543d;">🟢 正常 (2日內)</span>';
+    if (diffDays <= 5) return '<span class="sla-badge" style="background:#feebc8; color:#975a16;">🟡 屆期 (3-5日)</span>';
+    return '<span class="sla-badge" style="background:#fed7d7; color:#9b2c2c;">🔴 逾期 (>5日)</span>';
+  }
+
   function renderTable(cases) {
-    const tbody = document.getElementById('caseBody');
-    tbody.innerHTML = cases.map(c => {
-      // 產生轉派下拉選單
+    document.getElementById('caseBody').innerHTML = cases.map((c, index) => {
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
+      const ratingHtml = c.rating ? `<div class="rating-box">${c.rating.replace(/\n/g, '<br>')}</div>` : '';
       
       return `<tr>
         <td><strong style="color:#2b6cb0;">${c.caseId}</strong></td>
-        <td>${c.createdAt}</td>
+        <td>${c.createdAt}<br>${getSLABadge(c.createdAt, c.status)}</td>
         <td>
           <strong style="color:#e53e3e">${c.dept}</strong>
-          <select class="reassign-select" id="dept_${c.rowIndex}" onchange="reassignCase(${c.rowIndex}, '${c.dept}')">
-            <option value="" disabled>--- 轉派案件 ---</option>
-            ${deptOptions}
+          <select style="width:100%; margin-top:8px;" onchange="reassignCase(${c.rowIndex}, '${c.dept}', this.value)">
+            <option value="" disabled>--- 轉派處室 ---</option>${deptOptions}
           </select>
         </td>
-        <td style="max-width:280px;"><strong>${c.subject}</strong><br><small style="color:#4a5568;">${c.content}</small></td>
+        <td style="max-width:280px;"><strong>${c.subject}</strong><br><small style="color:#4a5568;">${c.content}</small>${ratingHtml}</td>
         <td><strong>${c.name}</strong><br>${c.phone}</td>
         <td><span class="status-badge tag-${c.status}">${c.status}</span></td>
         <td>
-          <button onclick="updateCase(${c.rowIndex}, '處理中')" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5;">標記處理中</button>
-          <button onclick="updateCase(${c.rowIndex}, '已結案')" style="padding:6px; font-size:13px; background:#38a169; width:100%;">結案並填寫回覆</button>
+          <button onclick="updateCase(${c.rowIndex}, '處理中')" style="width:100%; margin-bottom:6px; background:#805ad5;">標記處理中</button>
+          <button onclick="updateCase(${c.rowIndex}, '已結案')" style="width:100%; margin-bottom:6px; background:#38a169;">結案並回覆</button>
+          <button onclick="printSlip(${index})" style="width:100%; background:white; color:#4a5568; border:1px solid #cbd5e0;">🖨️ 匯出會辦單</button>
         </td>
       </tr>`;
     }).join('');
   }
 
-  // 更新狀態與回覆
   async function updateCase(rowIndex, status) {
     const note = prompt("請輸入處理紀錄或結案說明 (將會顯示於民眾前台查詢結果)：");
     if (note === null) return;
-    executeUpdateRequest(rowIndex, status, note, null);
+    executeRequest(rowIndex, status, note, null);
   }
 
-  // 觸發轉派
-  async function reassignCase(rowIndex, oldDept) {
-    const selectEl = document.getElementById(`dept_${rowIndex}`);
-    const newDept = selectEl.value;
+  async function reassignCase(rowIndex, oldDept, newDept) {
     if (newDept === oldDept) return;
-
-    if (!confirm(`確定要將此案件由【${oldDept}】轉派給【${newDept}】嗎？\n系統將會自動寄送通知信給新處室主任。`)) {
-      selectEl.value = oldDept; // 取消則復原選項
-      return;
-    }
-    executeUpdateRequest(rowIndex, null, null, newDept);
+    if (confirm(`確定要將此案件轉派給【${newDept}】嗎？\n系統將自動發信通知新處室主任。`)) executeRequest(rowIndex, null, null, newDept);
+    else fetchCases();
   }
 
-  // 執行 API 請求
-  async function executeUpdateRequest(rowIndex, status, note, newDept) {
-    try {
-      const payload = { action: "adminUpdateCase", sessionKey: g_sessionKey, rowIndex: rowIndex };
-      if (status) payload.status = status;
-      if (note) payload.replyNotes = note;
-      if (newDept) payload.newDept = newDept;
+  async function executeRequest(rowIndex, status, note, newDept) {
+    const payload = { action: "adminUpdateCase", sessionKey: g_sessionKey, rowIndex: rowIndex };
+    if (status) payload.status = status; if (note) payload.replyNotes = note; if (newDept) payload.newDept = newDept;
+    const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "text/plain;charset=utf-8" }});
+    const json = await res.json();
+    if (json.success) fetchCases(); else alert("更新失敗: " + json.message);
+  }
 
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "text/plain;charset=utf-8" }
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchCases(); // 重新整理表格
-      } else {
-        alert("更新失敗: " + json.message);
-      }
-    } catch (e) {
-      alert("連線失敗，請檢查網路。");
-    }
+  // ================= 匯出 PDF 會辦單 (前端網頁列印轉出) =================
+  function printSlip(dataIndex) {
+    const c = g_casesData[dataIndex];
+    const printWin = window.open('', '_blank');
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>陳情案件會辦單 - ${c.caseId}</title>
+        <style>
+          @page { size: A4; margin: 20mm; }
+          body { font-family: "標楷體", "DFKai-SB", "TW-Kai", serif; padding: 0; line-height: 1.6; color: #000; }
+          h1 { text-align: center; font-size: 28px; margin-bottom: 25px; letter-spacing: 2px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          th, td { border: 1px solid #000; padding: 12px 15px; font-size: 16px; }
+          th { width: 15%; background-color: #f2f2f2; text-align: justify; text-align-last: justify; }
+          .sign-area { height: 160px; border: 1px solid #000; padding: 15px; font-size: 18px; }
+          .footer { text-align: right; font-size: 12px; margin-top: 20px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <h1>臺中市立豐東國民中學 人民陳情案件會辦單</h1>
+        <table>
+          <tr><th>案件編號</th><td style="font-family: sans-serif;">${c.caseId}</td><th>立案日期</th><td style="font-family: sans-serif;">${c.createdAt}</td></tr>
+          <tr><th>主責處室</th><td>${c.dept}</td><th>議題類別</th><td>${c.issue}</td></tr>
+          <tr><th>陳情人</th><td>${c.name} (${c.identity})</td><th>聯絡電話</th><td style="font-family: sans-serif;">${c.phone}</td></tr>
+          <tr><th>信件主旨</th><td colspan="3">${c.subject}</td></tr>
+          <tr><th style="height: 250px; vertical-align: top;">具體內容</th><td colspan="3" style="vertical-align: top;">${c.content.replace(/\n/g, '<br>')}</td></tr>
+        </table>
+        
+        <div style="display: flex; gap: 15px;">
+          <div style="flex: 1;" class="sign-area"><strong>承辦人核章：</strong></div>
+          <div style="flex: 1;" class="sign-area"><strong>處室主任核章：</strong></div>
+          <div style="flex: 1;" class="sign-area"><strong>校長批示：</strong></div>
+        </div>
+        
+        <div class="footer">列印時間：${new Date().toLocaleString('zh-TW')}</div>
+        
+        <script>
+          // 載入完成後自動觸發列印 (可直接存成 PDF)
+          window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
+        </script>
+      </body>
+      </html>
+    `;
+    
+    printWin.document.write(htmlContent);
+    printWin.document.close();
   }
 </script>
 </body>

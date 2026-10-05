@@ -54,13 +54,12 @@
 </div>
 
 <script>
-  // ⚠️ 請填入民意信箱 GAS URL 與 SSO URL
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec";
   const SSO_LOGIN_URL = "https://sysop-coder.github.io/sso/"; 
 
   let g_sessionKey = sessionStorage.getItem('adminSessionKey');
   let g_availableDepts = [];
-  let g_casesData = []; // 儲存案件全域變數，供列印使用
+  let g_casesData = []; 
 
   window.onload = async function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -98,7 +97,6 @@
     } else { reloginSSO(); }
   }
 
-  // SLA 時效計算邏輯
   function getSLABadge(dateStr, status) {
     if (status === '已結案') return '<span style="color:#718096; font-size:13px; font-weight:bold;">⚪ 已結案</span>';
     const createDate = new Date(dateStr.replace(/-/g, '/'));
@@ -159,6 +157,7 @@
     const c = g_casesData[dataIndex];
     const printWin = window.open('', '_blank');
     
+    // 【修正點】：將 </script> 修改為 <\/script>，避免提早截斷 HTML 解析
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -194,9 +193,8 @@
         <div class="footer">列印時間：${new Date().toLocaleString('zh-TW')}</div>
         
         <script>
-          // 載入完成後自動觸發列印 (可直接存成 PDF)
           window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
-        </script>
+        <\/script>
       </body>
       </html>
     `;

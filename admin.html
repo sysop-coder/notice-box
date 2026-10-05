@@ -29,6 +29,29 @@
     
     /* 權限阻擋畫面 */
     .error-card { max-width: 500px; margin: 80px auto; text-align: center; padding: 40px; border-top: 5px solid #e53e3e; }
+
+    /* 高級經典彈跳視窗 (Modal) */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.45); display: flex; justify-content: center; align-items: center; z-index: 1000;
+      backdrop-filter: blur(2px);
+    }
+    .modal-box {
+      background: #ffffff; width: 92%; max-width: 680px; border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.18); overflow: hidden; animation: modalPop 0.2s ease-out;
+    }
+    @keyframes modalPop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-header {
+      background: #2b6cb0; color: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-header h3 { margin: 0; font-size: 18px; font-weight: bold; }
+    .modal-close-btn { background: transparent; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1; padding: 0 4px; }
+    .modal-body { padding: 20px; max-height: 72vh; overflow-y: auto; font-size: 14px; }
+    .case-summary-card { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; font-size: 14px; }
+    .summary-line { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .modal-footer {
+      padding: 14px 20px; background: #edf2f7; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0;
+    }
   </style>
 </head>
 <body>
@@ -65,7 +88,7 @@
           <th>主旨與內容</th>
           <th style="width: 160px;">陳情人資訊</th>
           <th style="width: 90px;">狀態</th>
-          <th style="width: 140px;">操作 (處理/結案)</th>
+          <th style="width: 150px;">操作 (處理/結案)</th>
         </tr>
       </thead>
       <tbody id="caseBody"></tbody>
@@ -73,29 +96,72 @@
   </div>
 </div>
 
+<!-- 高級經典結案與回覆 Modal 視窗 -->
+<div id="replyModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>豐東民意信箱 - 案件處理與結案回覆</h3>
+      <button class="modal-close-btn" onclick="closeReplyModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="case-summary-card">
+        <div class="summary-line">
+          <span><strong>案件編號：</strong><span id="modalCaseId" style="color:#2b6cb0; font-weight:bold;"></span></span>
+          <span><strong>當前狀態：</strong><span id="modalStatusBadge"></span></span>
+        </div>
+        <div class="summary-line">
+          <span><strong>主責處室：</strong><strong id="modalDept" style="color:#e53e3e;"></strong></span>
+          <span><strong>陳情人：</strong><span id="modalSubmitter"></span></span>
+        </div>
+        <div style="margin-top: 6px;"><strong>信件主旨：</strong><span id="modalSubject"></span></div>
+        <div style="margin-top: 6px; color:#4a5568; font-size:13px; max-height:85px; overflow-y:auto; background:#fff; padding:8px; border-radius:4px; border:1px solid #e2e8f0;">
+          <strong>陳情原文：</strong><span id="modalContent"></span>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <label style="display:block; font-weight:bold; margin-bottom:6px; color:#2d3748;">
+          處理紀錄與結案說明 (民眾線上查詢及通知信將顯示此內容)：
+        </label>
+        <textarea id="modalReplyText" rows="6" style="width:100%; box-sizing:border-box; padding:10px; border:1.5px solid #cbd5e0; border-radius:6px; font-family:inherit; font-size:15px; resize:vertical;" placeholder="請輸入具體處理紀錄或結案說明..."></textarea>
+      </div>
+
+      <div style="margin-top: 14px; background:#ebf8ff; border:1px solid #bee3f8; padding:10px 14px; border-radius:6px; display:flex; align-items:center;">
+        <input type="checkbox" id="modalSendEmail" style="width:18px; height:18px; margin-right:10px; cursor:pointer;" checked>
+        <label for="modalSendEmail" style="cursor:pointer; font-size:14px; color:#2b6cb0; font-weight:bold; margin:0;">
+          同步寄發 Email 通知信給陳情人 (<span id="modalPetitionerEmail"></span>)
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeReplyModal()">取消</button>
+      <button onclick="submitModalReply(false)" style="background:#3182ce;" id="modalBtnSaveOnly">僅儲存回覆說明</button>
+      <button onclick="submitModalReply(true)" style="background:#38a169;" id="modalBtnCloseCase">確認結案並儲存</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  // ================= ⚠️ 請修改為您的 GAS API 網址 ⚠️ =================
+  // ================= ⚠️ 已補正 https:// 協定 ⚠️ =================
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec";
   // 請修改為您的 SSO 登入頁面網址
   const SSO_LOGIN_URL = "https://sysop-coder.github.io/sso/"; 
 
   let g_sessionKey = sessionStorage.getItem('adminSessionKey');
   let g_availableDepts = [];
+  let g_cases = []; // 快取當前案件清單供彈窗呼叫
+  let g_activeRowIndex = null;
 
   window.onload = async function() {
-    // 1. 檢查網址是否有 token
     const urlParams = new URLSearchParams(window.location.search);
     const ssoToken = urlParams.get('token');
 
     if (ssoToken) {
-      // 抹除網址上的 Token，避免 F5 重新整理報錯
       window.history.replaceState({}, document.title, window.location.pathname);
       await processSSOToken(ssoToken);
     } else if (g_sessionKey) {
-      // 已經有 Session，直接撈取資料
       await fetchCases();
     } else {
-      // 未登入，強制導向 SSO
       reloginSSO();
     }
   };
@@ -149,6 +215,7 @@
       const json = await res.json();
 
       if (json.success) {
+        g_cases = json.data;
         g_availableDepts = json.availableDepts;
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('main-ui').classList.remove('hidden');
@@ -163,12 +230,15 @@
     }
   }
 
-  // 渲染表格 (包含轉派選單)
+  // 渲染表格
   function renderTable(cases) {
     const tbody = document.getElementById('caseBody');
     tbody.innerHTML = cases.map(c => {
-      // 產生轉派下拉選單
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
+      
+      // 已結案案件，按鈕文字變更為「修改回覆內容 / 重寄信」
+      const isClosed = (c.status === '已結案');
+      const actionBtnText = isClosed ? '修改回覆內容 / 重寄信' : '結案並填寫回覆';
       
       return `<tr>
         <td><strong style="color:#2b6cb0;">${c.caseId}</strong></td>
@@ -184,18 +254,77 @@
         <td><strong>${c.name}</strong><br>${c.phone}</td>
         <td><span class="status-badge tag-${c.status}">${c.status}</span></td>
         <td>
-          <button onclick="updateCase(${c.rowIndex}, '處理中')" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5;">標記處理中</button>
-          <button onclick="updateCase(${c.rowIndex}, '已結案')" style="padding:6px; font-size:13px; background:#38a169; width:100%;">結案並填寫回覆</button>
+          <button onclick="markProcessing(${c.rowIndex})" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5;">標記處理中</button>
+          <button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:#38a169; width:100%;">${actionBtnText}</button>
         </td>
       </tr>`;
     }).join('');
   }
 
-  // 更新狀態與回覆
-  async function updateCase(rowIndex, status) {
-    const note = prompt("請輸入處理紀錄或結案說明 (將會顯示於民眾前台查詢結果)：");
-    if (note === null) return;
-    executeUpdateRequest(rowIndex, status, note, null);
+  // 1. 標記處理中：直接更新狀態，不彈窗
+  async function markProcessing(rowIndex) {
+    executeUpdateRequest(rowIndex, '處理中', null, null, false);
+  }
+
+  // 2. 打開結案/回覆 Modal 視窗
+  function openReplyModal(rowIndex) {
+    const c = g_cases.find(x => x.rowIndex === rowIndex);
+    if (!c) return;
+
+    // 檢核：待驗證案件提示阻擋
+    if (c.status === '待驗證') {
+      alert('此案件尚未完成 Email 驗證，無法進行結案回覆！');
+      return;
+    }
+
+    g_activeRowIndex = rowIndex;
+
+    // 填入案件資訊
+    document.getElementById('modalCaseId').innerText = c.caseId;
+    document.getElementById('modalStatusBadge').innerHTML = `<span class="status-badge tag-${c.status}">${c.status}</span>`;
+    document.getElementById('modalDept').innerText = c.dept;
+    document.getElementById('modalSubmitter').innerText = `${c.name} (${c.phone})`;
+    document.getElementById('modalSubject').innerText = c.subject;
+    document.getElementById('modalContent').innerText = c.content;
+    document.getElementById('modalPetitionerEmail').innerText = c.email || '未提供信箱';
+
+    // 帶入先前的回覆紀錄（供修改補充）
+    document.getElementById('modalReplyText').value = c.reply || '';
+
+    // 若陳情人無 Email 則停用勾選
+    const sendEmailCheckbox = document.getElementById('modalSendEmail');
+    if (!c.email) {
+      sendEmailCheckbox.checked = false;
+      sendEmailCheckbox.disabled = true;
+    } else {
+      sendEmailCheckbox.disabled = false;
+      sendEmailCheckbox.checked = true;
+    }
+
+    // 顯示 Modal
+    document.getElementById('replyModal').classList.remove('hidden');
+  }
+
+  function closeReplyModal() {
+    document.getElementById('replyModal').classList.add('hidden');
+    g_activeRowIndex = null;
+  }
+
+  // 提交 Modal 中的處理回覆
+  async function submitModalReply(isCloseCase) {
+    if (!g_activeRowIndex) return;
+    const replyNotes = document.getElementById('modalReplyText').value.trim();
+    const sendEmailToUser = document.getElementById('modalSendEmail').checked;
+    
+    if (isCloseCase && !replyNotes) {
+      if (!confirm("您尚未填寫任何處理紀錄或結案說明，確定要直接結案嗎？")) {
+        return;
+      }
+    }
+
+    const newStatus = isCloseCase ? '已結案' : null;
+    closeReplyModal();
+    executeUpdateRequest(g_activeRowIndex, newStatus, replyNotes, null, sendEmailToUser);
   }
 
   // 觸發轉派
@@ -205,19 +334,20 @@
     if (newDept === oldDept) return;
 
     if (!confirm(`確定要將此案件由【${oldDept}】轉派給【${newDept}】嗎？\n系統將會自動寄送通知信給新處室主任。`)) {
-      selectEl.value = oldDept; // 取消則復原選項
+      selectEl.value = oldDept;
       return;
     }
-    executeUpdateRequest(rowIndex, null, null, newDept);
+    executeUpdateRequest(rowIndex, null, null, newDept, false);
   }
 
   // 執行 API 請求
-  async function executeUpdateRequest(rowIndex, status, note, newDept) {
+  async function executeUpdateRequest(rowIndex, status, note, newDept, sendEmailToUser) {
     try {
       const payload = { action: "adminUpdateCase", sessionKey: g_sessionKey, rowIndex: rowIndex };
       if (status) payload.status = status;
-      if (note) payload.replyNotes = note;
+      if (note !== null && note !== undefined) payload.replyNotes = note;
       if (newDept) payload.newDept = newDept;
+      if (sendEmailToUser) payload.sendEmailToUser = true;
 
       const res = await fetch(API_URL, {
         method: "POST",

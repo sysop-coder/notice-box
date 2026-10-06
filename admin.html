@@ -254,7 +254,11 @@
       } else if (c.status === '儲存回覆') {
         actionBtnText = '下一步：結案';
         actionBtnBg = '#3182ce'; 
-      } else if (c.status === '已結案' || c.status === '結案' || c.status === '不成案') {
+      } else if (c.status === '不成案') {
+        // ★ 針對不成案狀態，改為紅底白字
+        actionBtnText = '不成案';
+        actionBtnBg = '#e53e3e'; 
+      } else if (c.status === '已結案' || c.status === '結案') {
         actionBtnText = '已結案/變更修改';
       }
       

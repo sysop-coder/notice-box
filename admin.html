@@ -31,7 +31,15 @@
     
     /* 確保隱藏優先權最高 */
     .hidden { display: none !important; }
-    #loader { text-align: center; font-size: 18px; color: #718096; padding: 50px; }
+    #loader { 
+  position: fixed; 
+  top: 40%; 
+  left: 50%; 
+  transform: translate(-50%, -50%); 
+  text-align: center; 
+  color: #718096; 
+  width: 100%; 
+}
     
     /* 權限阻擋畫面 */
     .error-card { max-width: 500px; margin: 80px auto; text-align: center; padding: 40px; border-top: 5px solid #e53e3e; }

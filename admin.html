@@ -16,10 +16,44 @@
     th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; vertical-align: top; }
     th { background: #f7fafc; color: #4a5568; font-weight: bold; }
     .status-badge { padding: 4px 10px; border-radius: 14px; font-size: 13px; font-weight: bold; color: white; background: #3182ce; display: inline-block; }
-    .tag-待驗證 { background: #feebc8; color: #c05621; }
-    .tag-已成案 { background: #bee3f8; color: #2b6cb0; }
-    .tag-處理中 { background: #e9d8fd; color: #6b46c1; }
-    .tag-已結案 { background: #c6f6d5; color: #22543d; }
+    // 渲染表格
+  function renderTable(cases) {
+    const tbody = document.getElementById('caseBody');
+    tbody.innerHTML = cases.map(c => {
+      const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
+      
+      // 1. 動態變更回覆按鈕的文字
+      let actionBtnText = '結案並填寫回覆';
+      if (c.status === '已結案' || c.status === '結案') {
+        actionBtnText = '結案並已寄通知信';
+      } else if (c.status === '儲存回覆') {
+        actionBtnText = '儲存回覆說明';
+      }
+      
+      // 2. 標記處理中按鈕的消失邏輯：當狀態已推進到處理中或更後面的階段時，不渲染該按鈕
+      const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案');
+      const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing(${c.rowIndex})" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5;">標記處理中</button>`;
+
+      return `<tr>
+        <td><strong style="color:#2b6cb0;">${c.caseId}</strong></td>
+        <td>${c.createdAt}</td>
+        <td>
+          <strong style="color:#e53e3e">${c.dept}</strong>
+          <select class="reassign-select" id="dept_${c.rowIndex}" onchange="reassignCase(${c.rowIndex}, '${c.dept}')">
+            <option value="" disabled>--- 轉派案件 ---</option>
+            ${deptOptions}
+          </select>
+        </td>
+        <td style="max-width:280px;"><strong>${c.subject}</strong><br><small style="color:#4a5568;">${c.content}</small></td>
+        <td><strong>${c.name}</strong><br>${c.phone}</td>
+        <td><span class="status-badge tag-${c.status}">${c.status}</span></td>
+        <td>
+          ${processBtnHtml}
+          <button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:#38a169; width:100%;">${actionBtnText}</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
     
     /* 轉派選單 */
     .reassign-select { margin-top: 8px; width: 100%; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 13px; }
@@ -303,6 +337,7 @@
     g_activeRowIndex = null;
   }
 
+ 
   // 提交 Modal 中的回覆
   async function submitModalReply(isCloseCase) {
     if (!g_activeRowIndex) return;
@@ -315,14 +350,12 @@
       }
     }
 
-    const newStatus = isCloseCase ? '已結案' : null;
+    // 依據操作賦予後端對應的新狀態
+    const newStatus = isCloseCase ? '已結案' : '儲存回覆';
     
-    // 【修正重點】先把行號存起來，以免被 closeReplyModal 清掉
     const targetRowIndex = g_activeRowIndex; 
+    closeReplyModal();
     
-    closeReplyModal(); // 這裡會關閉視窗並把 g_activeRowIndex 清空為 null
-    
-    // 使用存起來的 targetRowIndex 發送請求
     executeUpdateRequest(targetRowIndex, newStatus, replyNotes, null, sendEmailToUser);
   }
 

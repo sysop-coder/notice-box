@@ -24,6 +24,7 @@
     .tag-已結案, .tag-結案 { background: #c6f6d5; color: #22543d; }
     /* 將背景改為與按鈕一致的藍色 (#3182ce)，字體改為白色 */
     .tag-儲存回覆 { background: #3182ce; color: white; }
+    .tag-不成案 { background: #fed7d7; color: #c53030; }
     
     /* 轉派選單 */
     .reassign-select { margin-top: 8px; width: 100%; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 13px; }
@@ -242,24 +243,29 @@
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
       
       // 1. 動態變更主要按鈕的顯示、文字與顏色
-      let actionBtnText = '填寫回覆'; // 將預設文字改為「填寫回覆」(適用於「已成案」與「處理中」)
-      let actionBtnBg = '#38a169'; // 預設為綠色
-      let showActionBtn = true; // 預設顯示主要回覆按鈕
+      let actionBtnText = '填寫回覆'; 
+      let actionBtnBg = '#38a169'; 
+      let showActionBtn = true; 
       
       if (c.status === '待驗證') {
-        showActionBtn = false; // 狀態為待驗證時，完全隱藏結案回覆按鈕
+        showActionBtn = false; // 待驗證時，隱藏結案回覆按鈕
+      } else if (c.status === '處理中') {
+        actionBtnText = '填寫回覆';
       } else if (c.status === '儲存回覆') {
         actionBtnText = '下一步：結案';
-        actionBtnBg = '#3182ce'; // 維持藍色設定
-      } else if (c.status === '已結案' || c.status === '結案') {
+        actionBtnBg = '#3182ce'; 
+      } else if (c.status === '已結案' || c.status === '結案' || c.status === '不成案') {
         actionBtnText = '已結案/變更修改';
       }
       
       // 2. 標記處理中按鈕的消失邏輯
-      const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案');
-      const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing(${c.rowIndex})" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5;">標記處理中</button>`;
+      const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案' || c.status === '不成案');
+      const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing(${c.rowIndex})" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;
 
-      // 3. 處理/結案回覆按鈕的 HTML 組合
+      // 3. 新增「不成案」紅底白字按鈕 (僅在待驗證時顯示)
+      const rejectBtnHtml = (c.status === '待驗證') ? `<button onclick="markRejected(${c.rowIndex})" style="padding:6px; font-size:13px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
+
+      // 4. 結案回覆主要按鈕
       const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
 
       return `<tr>
@@ -277,6 +283,7 @@
         <td><span class="status-badge tag-${c.status}">${c.status}</span></td>
         <td>
           ${processBtnHtml}
+          ${rejectBtnHtml}
           ${actionBtnHtml}
         </td>
       </tr>`;
@@ -291,6 +298,19 @@
       renderTable(g_cases);
     }
     executeUpdateRequest(rowIndex, '處理中', null, null, false);
+  }
+
+  // ★ 新增：標記不成案 (含防呆確認與零延遲更新機制)
+  async function markRejected(rowIndex) {
+    if (!confirm("確定要將此案件直接標記為「不成案」嗎？")) {
+      return;
+    }
+    const c = g_cases.find(x => x.rowIndex === rowIndex);
+    if (c) {
+      c.status = '不成案';
+      renderTable(g_cases);
+    }
+    executeUpdateRequest(rowIndex, '不成案', null, null, false);
   }
 
   // 2. 打開結案/回覆 Modal 視窗 (修復點：確保函式存在)

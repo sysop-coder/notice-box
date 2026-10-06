@@ -22,7 +22,8 @@
     .tag-已成案 { background: #bee3f8; color: #2b6cb0; }
     .tag-處理中 { background: #e9d8fd; color: #6b46c1; }
     .tag-已結案, .tag-結案 { background: #c6f6d5; color: #22543d; }
-    .tag-儲存回覆 { background: #b2f5ea; color: #234e52; }
+    /* 將背景改為與按鈕一致的藍色 (#3182ce)，字體改為白色 */
+    .tag-儲存回覆 { background: #3182ce; color: white; }
     
     /* 轉派選單 */
     .reassign-select { margin-top: 8px; width: 100%; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 13px; }
@@ -240,15 +241,18 @@
     tbody.innerHTML = cases.map(c => {
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
       
-      // 1. 動態變更綠色按鈕的文字
+      // 1. 動態變更綠色按鈕的文字與「顏色」
       let actionBtnText = '結案並填寫回覆';
+      let actionBtnBg = '#38a169'; // 預設為綠色
+      
       if (c.status === '已結案' || c.status === '結案') {
         actionBtnText = '結案並已寄通知信';
       } else if (c.status === '儲存回覆') {
         actionBtnText = '儲存回覆說明';
+        actionBtnBg = '#3182ce'; // 狀態為儲存回覆時，按鈕改為藍色
       }
       
-      // 2. 標記處理中按鈕的消失邏輯 (狀態推進後隱藏紫色按鈕)
+      // 2. 標記處理中按鈕的消失邏輯
       const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案');
       const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing(${c.rowIndex})" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5;">標記處理中</button>`;
 
@@ -267,7 +271,7 @@
         <td><span class="status-badge tag-${c.status}">${c.status}</span></td>
         <td>
           ${processBtnHtml}
-          <button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:#38a169; width:100%;">${actionBtnText}</button>
+          <button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:${actionBtnBg}; width:100%;">${actionBtnText}</button>
         </td>
       </tr>`;
     }).join('');
@@ -275,46 +279,17 @@
 
   // 1. 標記處理中
   async function markProcessing(rowIndex) {
+    // 【立即更新畫面，消除延遲】
+    const c = g_cases.find(x => x.rowIndex === rowIndex);
+    if (c) {
+      c.status = '處理中';
+      renderTable(g_cases);
+    }
+    // 背景默默發送 API 給伺服器
     executeUpdateRequest(rowIndex, '處理中', null, null, false);
   }
 
-  // 2. 打開結案/回覆 Modal 視窗
-  function openReplyModal(rowIndex) {
-    const c = g_cases.find(x => x.rowIndex === rowIndex);
-    if (!c) return;
-
-    if (c.status === '待驗證') {
-      alert('此案件尚未完成 Email 驗證，無法進行結案回覆！');
-      return;
-    }
-
-    g_activeRowIndex = rowIndex;
-
-    document.getElementById('modalCaseId').innerText = c.caseId;
-    document.getElementById('modalStatusBadge').innerHTML = `<span class="status-badge tag-${c.status}">${c.status}</span>`;
-    document.getElementById('modalDept').innerText = c.dept;
-    document.getElementById('modalSubmitter').innerText = `${c.name} (${c.phone})`;
-    document.getElementById('modalSubject').innerText = c.subject;
-    document.getElementById('modalContent').innerText = c.content;
-    document.getElementById('modalPetitionerEmail').innerText = c.email || '未提供信箱';
-    document.getElementById('modalReplyText').value = c.reply || '';
-
-    const sendEmailCheckbox = document.getElementById('modalSendEmail');
-    if (!c.email) {
-      sendEmailCheckbox.checked = false;
-      sendEmailCheckbox.disabled = true;
-    } else {
-      sendEmailCheckbox.disabled = false;
-      sendEmailCheckbox.checked = true;
-    }
-
-    document.getElementById('replyModal').classList.remove('hidden');
-  }
-
-  function closeReplyModal() {
-    document.getElementById('replyModal').classList.add('hidden');
-    g_activeRowIndex = null;
-  }
+  // ...中間的 openReplyModal 與 closeReplyModal 保持原樣...
 
   // 提交 Modal 中的回覆
   async function submitModalReply(isCloseCase) {
@@ -328,15 +303,20 @@
       }
     }
 
-    // 依據操作賦予後端對應的新狀態
     const newStatus = isCloseCase ? '已結案' : '儲存回覆';
-    
-    // 【修正重點】先把行號存起來，以免被 closeReplyModal 清掉
     const targetRowIndex = g_activeRowIndex; 
     
     closeReplyModal();
     
-    // 使用存起來的 targetRowIndex 發送請求
+    // 【立即更新畫面，消除延遲】
+    const c = g_cases.find(x => x.rowIndex === targetRowIndex);
+    if (c) {
+      c.status = newStatus;
+      if (replyNotes) c.reply = replyNotes;
+      renderTable(g_cases);
+    }
+    
+    // 背景默默發送 API 給伺服器
     executeUpdateRequest(targetRowIndex, newStatus, replyNotes, null, sendEmailToUser);
   }
 
@@ -350,6 +330,15 @@
       selectEl.value = oldDept;
       return;
     }
+
+    // 【立即更新畫面，消除延遲】
+    const c = g_cases.find(x => x.rowIndex === rowIndex);
+    if (c) {
+      c.dept = newDept;
+      renderTable(g_cases);
+    }
+
+    // 背景默默發送 API 給伺服器
     executeUpdateRequest(rowIndex, null, null, newDept, false);
   }
 

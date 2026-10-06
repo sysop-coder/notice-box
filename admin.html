@@ -32,14 +32,16 @@
     /* 確保隱藏優先權最高 */
     .hidden { display: none !important; }
     #loader { 
-  position: fixed; 
-  top: 40%; 
-  left: 50%; 
-  transform: translate(-50%, -50%); 
-  text-align: center; 
-  color: #718096; 
-  width: 100%; 
-}
+      position: fixed; 
+      top: 40%; 
+      left: 0; 
+      width: 100%; 
+      z-index: 9999; 
+    }
+    #loader h2 { 
+      justify-content: center; /* 覆寫全域 h2 的設定，強制讓文字置中 */
+      color: #718096; 
+    }
     
     /* 權限阻擋畫面 */
     .error-card { max-width: 500px; margin: 80px auto; text-align: center; padding: 40px; border-top: 5px solid #e53e3e; }

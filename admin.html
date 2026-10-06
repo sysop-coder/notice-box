@@ -241,20 +241,28 @@
     tbody.innerHTML = cases.map(c => {
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
       
-      // 動態變更按鈕的文字與「顏色」
-      let actionBtnText = '結案並填寫回覆';
+      // 1. 動態變更主要按鈕的顯示、文字與顏色
+      let actionBtnText = '結案並填寫回覆'; // 預設(適用於「已成案」)
       let actionBtnBg = '#38a169'; // 預設為綠色
+      let showActionBtn = true; // 預設顯示主要回覆按鈕
       
-      if (c.status === '已結案' || c.status === '結案') {
-        actionBtnText = '結案並已寄通知信';
+      if (c.status === '待驗證') {
+        showActionBtn = false; // 狀態為待驗證時，完全隱藏結案回覆按鈕
+      } else if (c.status === '處理中') {
+        actionBtnText = '填寫回覆';
       } else if (c.status === '儲存回覆') {
-        actionBtnText = '儲存回覆說明';
-        actionBtnBg = '#3182ce'; // 狀態為儲存回覆時，按鈕改為藍色
+        actionBtnText = '下一步：結案';
+        actionBtnBg = '#3182ce'; // 維持先前的藍色設定
+      } else if (c.status === '已結案' || c.status === '結案') {
+        actionBtnText = '已結案/變更修改';
       }
       
-      // 標記處理中按鈕的消失邏輯
+      // 2. 標記處理中按鈕的消失邏輯
       const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案');
       const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing(${c.rowIndex})" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5;">標記處理中</button>`;
+
+      // 3. 處理/結案回覆按鈕的 HTML 組合
+      const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
 
       return `<tr>
         <td><strong style="color:#2b6cb0;">${c.caseId}</strong></td>
@@ -271,7 +279,7 @@
         <td><span class="status-badge tag-${c.status}">${c.status}</span></td>
         <td>
           ${processBtnHtml}
-          <button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>
+          ${actionBtnHtml}
         </td>
       </tr>`;
     }).join('');

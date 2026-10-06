@@ -242,17 +242,15 @@
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
       
       // 1. 動態變更主要按鈕的顯示、文字與顏色
-      let actionBtnText = '結案並填寫回覆'; // 預設(適用於「已成案」)
+      let actionBtnText = '填寫回覆'; // 將預設文字改為「填寫回覆」(適用於「已成案」與「處理中」)
       let actionBtnBg = '#38a169'; // 預設為綠色
       let showActionBtn = true; // 預設顯示主要回覆按鈕
       
       if (c.status === '待驗證') {
         showActionBtn = false; // 狀態為待驗證時，完全隱藏結案回覆按鈕
-      } else if (c.status === '處理中') {
-        actionBtnText = '填寫回覆';
       } else if (c.status === '儲存回覆') {
         actionBtnText = '下一步：結案';
-        actionBtnBg = '#3182ce'; // 維持先前的藍色設定
+        actionBtnBg = '#3182ce'; // 維持藍色設定
       } else if (c.status === '已結案' || c.status === '結案') {
         actionBtnText = '已結案/變更修改';
       }

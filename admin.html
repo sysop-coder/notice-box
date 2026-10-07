@@ -237,23 +237,27 @@
 </div>
 
 <script>
-  // ================= ⚠️ 請修改為您的 GAS API 網址 ⚠️ =================
+// ================= ⚠️ 請修改為您的 GAS API 網址 ⚠️ =================
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec";
   const SSO_LOGIN_URL = "https://sysop-coder.github.io/sso/"; 
 
-  let g_sessionKey = sessionStorage.getItem('adminSessionKey');
+  // ✨ 升級：改用 localStorage 讓同仁不必頻繁重新登入
+  let g_sessionKey = localStorage.getItem('adminSessionKey');
   let g_availableDepts = [];
   let g_cases = [];
   let g_activeRowIndex = null;
   let g_currentSettings = null; 
+  
+  // ✨ 新增：防重複發送的請求鎖
+  let g_isVerifyingToken = false; 
 
   window.onload = async function() {
     const urlParams = new URLSearchParams(window.location.search);
     const ssoToken = urlParams.get('token');
 
     if (ssoToken) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-      await processSSOToken(ssoToken);
+      // ⚠️ 關鍵修正：不要在這裡立刻清空網址 Token！交給下方驗證成功後再清。
+      await processSSOTokenWithRetry(ssoToken, 2); // 允許最多嘗試 2 次
     } else if (g_sessionKey) {
       await fetchCases();
     } else {
@@ -262,40 +266,72 @@
   };
 
   function reloginSSO() {
-    sessionStorage.removeItem('adminSessionKey');
+    localStorage.removeItem('adminSessionKey');
     const returnUrl = encodeURIComponent(window.location.origin + window.location.pathname);
     window.location.href = `${SSO_LOGIN_URL}?redirect=${returnUrl}`;
   }
 
   function logout() {
-    sessionStorage.removeItem('adminSessionKey');
+    localStorage.removeItem('adminSessionKey');
     window.location.reload();
   }
 
-  async function processSSOToken(token) {
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "verifySSO", token: token }),
-        headers: { "Content-Type": "text/plain;charset=utf-8" }
-      });
-      const json = await res.json();
-      
-      if (json.success) {
-        g_sessionKey = json.sessionKey;
-        sessionStorage.setItem('adminSessionKey', g_sessionKey);
-        await fetchCases();
-      } else if (json.message === "NOT_AUTHORIZED") {
-        document.getElementById('loader').classList.add('hidden');
-        document.getElementById('unauthorized-card').classList.remove('hidden');
-        document.getElementById('unauth-msg').innerHTML = `您好，<strong>${json.displayName || '同仁'}</strong>（${json.email}）：<br>您的帳號目前<strong>尚未具備</strong>本信箱的管理查核權限。如需處理陳情案件，請聯繫校長室新增授權。`;
-      } else {
-        alert("登入驗證失敗：" + json.message);
-        reloginSSO();
+  // ✨ 關鍵優化：具備重試機制與防重複發送的 SSO 驗證
+  async function processSSOTokenWithRetry(token, maxRetries = 2) {
+    // 防重複請求鎖：如果已經在驗證中，直接擋掉後續重複觸發
+    if (g_isVerifyingToken) return;
+    g_isVerifyingToken = true;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "verifySSO", token: token }),
+          headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+        const json = await res.json();
+        
+        if (json.success) {
+          g_sessionKey = json.sessionKey;
+          localStorage.setItem('adminSessionKey', g_sessionKey);
+          
+          // ✅ 只有在真的成功拿到身分後，才乾淨地抹除網址上的 token
+          window.history.replaceState({}, document.title, window.location.pathname);
+          g_isVerifyingToken = false;
+
+          await fetchCases();
+          return; // 成功結束
+          
+        } else if (json.message === "NOT_AUTHORIZED") {
+          // 白名單未授權：抹除 token 並停在提示畫面，不跳轉
+          window.history.replaceState({}, document.title, window.location.pathname);
+          document.getElementById('loader').classList.add('hidden');
+          document.getElementById('unauthorized-card').classList.remove('hidden');
+          document.getElementById('unauth-msg').innerHTML = `您好，<strong>${json.displayName || '同仁'}</strong>（${json.email}）：<br>您的帳號目前<strong>尚未具備</strong>本信箱的管理查核權限。如需處理陳情案件，請聯繫校長室新增授權。`;
+          g_isVerifyingToken = false;
+          return;
+          
+        } else {
+          // Token 真實無效或已過期
+          if (attempt === maxRetries) {
+            alert("登入驗證失敗：" + json.message);
+            reloginSSO();
+            return;
+          }
+        }
+      } catch (e) {
+        console.error(`SSO 驗證第 ${attempt} 次連線失敗:`, e);
+        if (attempt === maxRetries) {
+          // 最後一次重試還是失敗，提示使用者自己 F5 重整
+          alert("網路連線逾時，請檢查連線後重新整理頁面。");
+          g_isVerifyingToken = false;
+          return;
+        }
+        // 遇到網路延遲掉進 catch 時，等待 1.5 秒後進行第二次救援重試
+        await new Promise(r => setTimeout(r, 1500));
       }
-    } catch (e) {
-      alert("網路連線錯誤，請重試。");
     }
+    g_isVerifyingToken = false;
   }
 
   async function fetchCases() {

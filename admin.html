@@ -374,6 +374,10 @@
     }
   }
 
+  // =========================================================
+  // 案件渲染與操作 (完全對接 Firebase 的 caseId)
+  // =========================================================
+
   function renderTable(cases) {
     const tbody = document.getElementById('caseBody');
     tbody.innerHTML = cases.map(c => {
@@ -398,16 +402,18 @@
       }
       
       const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案' || c.status === '不成案');
-      const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing(${c.rowIndex})" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;
-      const rejectBtnHtml = (c.status === '待驗證') ? `<button onclick="markRejected(${c.rowIndex})" style="padding:6px; font-size:13px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
-      const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
+      
+      // ⚠️ 關鍵修正：onclick 事件裡面的 c.caseId 是字串，必須用單引號包起來，否則 JavaScript 會報錯！
+      const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing('${c.caseId}')" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;
+      const rejectBtnHtml = (c.status === '待驗證') ? `<button onclick="markRejected('${c.caseId}')" style="padding:6px; font-size:13px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
+      const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal('${c.caseId}')" style="padding:6px; font-size:13px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
 
       return `<tr>
         <td><strong style="color:#2b6cb0;">${c.caseId}</strong></td>
         <td>${c.createdAt}</td>
         <td>
           <strong style="color:#e53e3e">${c.dept}</strong>
-          <select class="reassign-select" id="dept_${c.rowIndex}" onchange="reassignCase(${c.rowIndex}, '${c.dept}')">
+          <select class="reassign-select" id="dept_${c.caseId}" onchange="reassignCase('${c.caseId}', '${c.dept}')">
             <option value="" disabled>--- 轉派案件 ---</option>
             ${deptOptions}
           </select>
@@ -420,24 +426,26 @@
     }).join('');
   }
 
-  async function markProcessing(rowIndex) {
-    const c = g_cases.find(x => x.rowIndex === rowIndex);
+  async function markProcessing(caseId) {
+    const c = g_cases.find(x => x.caseId === caseId);
     if (c) { c.status = '處理中'; renderTable(g_cases); }
-    executeUpdateRequest(rowIndex, '處理中', null, null, false);
+    executeUpdateRequest(caseId, '處理中', null, null, false);
   }
 
-  async function markRejected(rowIndex) {
+  async function markRejected(caseId) {
     if (!confirm("確定要將此案件直接標記為「不成案」嗎？")) return;
-    const c = g_cases.find(x => x.rowIndex === rowIndex);
+    const c = g_cases.find(x => x.caseId === caseId);
     if (c) { c.status = '不成案'; renderTable(g_cases); }
-    executeUpdateRequest(rowIndex, '不成案', null, null, false);
+    executeUpdateRequest(caseId, '不成案', null, null, false);
   }
 
-  function openReplyModal(rowIndex) {
-    const c = g_cases.find(x => x.rowIndex === rowIndex);
+  function openReplyModal(caseId) {
+    const c = g_cases.find(x => x.caseId === caseId);
     if (!c) return;
     if (c.status === '待驗證') { alert('此案件尚未完成 Email 驗證，無法進行結案回覆！'); return; }
-    g_activeRowIndex = rowIndex;
+    
+    g_activeCaseId = caseId; // 鎖定目前處理的 caseId
+    
     document.getElementById('modalCaseId').innerText = c.caseId;
     document.getElementById('modalStatusBadge').innerHTML = `<span class="status-badge tag-${c.status}">${c.status}</span>`;
     document.getElementById('modalDept').innerText = c.dept;
@@ -455,11 +463,11 @@
 
   function closeReplyModal() {
     document.getElementById('replyModal').classList.add('hidden');
-    g_activeRowIndex = null;
+    g_activeCaseId = null;
   }
 
   async function submitModalReply(isCloseCase) {
-    if (!g_activeRowIndex) return;
+    if (!g_activeCaseId) return;
     const replyNotes = document.getElementById('modalReplyText').value.trim();
     const sendEmailToUser = document.getElementById('modalSendEmail').checked;
     
@@ -468,34 +476,35 @@
     }
 
     const newStatus = isCloseCase ? '已結案' : '儲存回覆';
-    const targetRowIndex = g_activeRowIndex; 
+    const targetCaseId = g_activeCaseId; 
     closeReplyModal();
     
-    const c = g_cases.find(x => x.rowIndex === targetRowIndex);
+    const c = g_cases.find(x => x.caseId === targetCaseId);
     if (c) {
       c.status = newStatus;
       if (replyNotes) c.reply = replyNotes;
       renderTable(g_cases);
     }
-    executeUpdateRequest(targetRowIndex, newStatus, replyNotes, null, sendEmailToUser);
+    executeUpdateRequest(targetCaseId, newStatus, replyNotes, null, sendEmailToUser);
   }
 
-  async function reassignCase(rowIndex, oldDept) {
-    const selectEl = document.getElementById(`dept_${rowIndex}`);
+  async function reassignCase(caseId, oldDept) {
+    const selectEl = document.getElementById(`dept_${caseId}`);
     const newDept = selectEl.value;
     if (newDept === oldDept) return;
     if (!confirm(`確定要將此案件由【${oldDept}】轉派給【${newDept}】嗎？\n系統將會自動寄送通知信給新處室主任。`)) {
       selectEl.value = oldDept;
       return;
     }
-    const c = g_cases.find(x => x.rowIndex === rowIndex);
+    const c = g_cases.find(x => x.caseId === caseId);
     if (c) { c.dept = newDept; renderTable(g_cases); }
-    executeUpdateRequest(rowIndex, null, null, newDept, false);
+    executeUpdateRequest(caseId, null, null, newDept, false);
   }
 
-  async function executeUpdateRequest(rowIndex, status, note, newDept, sendEmailToUser) {
+  // ✨ 關鍵修正：將 payload 的屬性從 rowIndex 改為 caseId
+  async function executeUpdateRequest(caseId, status, note, newDept, sendEmailToUser) {
     try {
-      const payload = { action: "adminUpdateCase", sessionKey: g_sessionKey, rowIndex: rowIndex };
+      const payload = { action: "adminUpdateCase", sessionKey: g_sessionKey, caseId: caseId };
       if (status) payload.status = status;
       if (note !== null && note !== undefined) payload.replyNotes = note;
       if (newDept) payload.newDept = newDept;

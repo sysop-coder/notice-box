@@ -5,17 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>豐東國中 - 民意信箱管理後台</title>
   <style>
-    body { font-family: "Microsoft JhengHei", sans-serif; padding: 24px; background: #edf2f7; font-size: 16px; color: #2d3748; margin: 0; }
+    body { font-family: "Microsoft JhengHei", sans-serif; padding: 24px; background: #edf2f7; font-size: 29px; color: #2d3748; margin: 0; }
     .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    h2 { font-size: 24px; color: #2b6cb0; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
-    .user-badge { font-size: 14px; background: #ebf8ff; color: #2b6cb0; padding: 6px 12px; border-radius: 20px; font-weight: bold; border: 1px solid #bee3f8; }
-    button { padding: 10px 16px; font-size: 15px; border: none; border-radius: 6px; background-color: #3182ce; color: white; cursor: pointer; transition: 0.2s; }
+    h2 { font-size: 43px; color: #2b6cb0; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+    .user-badge { font-size: 25px; background: #ebf8ff; color: #2b6cb0; padding: 6px 12px; border-radius: 20px; font-weight: bold; border: 1px solid #bee3f8; }
+    button { padding: 10px 16px; font-size: 27px; border: none; border-radius: 6px; background-color: #3182ce; color: white; cursor: pointer; transition: 0.2s; }
     button:hover { background-color: #2b6cb0; }
     .btn-outline { background: white; color: #4a5568; border: 1px solid #cbd5e0; }
-    table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 27px; }
     th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; vertical-align: middle; }
     th { background: #f7fafc; color: #4a5568; font-weight: bold; }
-    .status-badge { padding: 4px 10px; border-radius: 14px; font-size: 13px; font-weight: bold; color: white; background: #3182ce; display: inline-block; }
+    .status-badge { padding: 4px 10px; border-radius: 14px; font-size: 23px; font-weight: bold; color: white; background: #3182ce; display: inline-block; }
     
     .tag-待驗證 { background: #feebc8; color: #c05621; }
     .tag-已成案 { background: #bee3f8; color: #2b6cb0; }
@@ -24,7 +24,7 @@
     .tag-儲存回覆 { background: #3182ce; color: white; }
     .tag-不成案 { background: #fed7d7; color: #c53030; }
     
-    .reassign-select { margin-top: 8px; width: 100%; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 13px; }
+    .reassign-select { margin-top: 8px; width: 100%; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 23px; }
     .hidden { display: none !important; }
     #loader { position: fixed; top: 40%; left: 0; width: 100%; z-index: 9999; }
     #loader h2 { justify-content: center; color: #718096; }
@@ -34,20 +34,20 @@
     .modal-box { background: #ffffff; width: 92%; max-width: 680px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.18); overflow: hidden; animation: modalPop 0.2s ease-out; }
     @keyframes modalPop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .modal-header { background: #2b6cb0; color: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
-    .modal-header h3 { margin: 0; font-size: 18px; font-weight: bold; }
-    .modal-close-btn { background: transparent; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1; padding: 0 4px; }
-    .modal-body { padding: 20px; max-height: 72vh; overflow-y: auto; font-size: 14px; }
-    .case-summary-card { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; font-size: 14px; }
+    .modal-header h3 { margin: 0; font-size: 32px; font-weight: bold; }
+    .modal-close-btn { background: transparent; border: none; color: white; font-size: 43px; cursor: pointer; line-height: 1; padding: 0 4px; }
+    .modal-body { padding: 20px; max-height: 72vh; overflow-y: auto; font-size: 25px; }
+    .case-summary-card { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; font-size: 25px; }
     .summary-line { display: flex; justify-content: space-between; margin-bottom: 6px; }
     .modal-footer { padding: 14px 20px; background: #edf2f7; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; }
 
     /* 圖形化系統設定樣式 */
-    .settings-input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-family: inherit; font-size: 14px; }
+    .settings-input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-family: inherit; font-size: 25px; }
     .settings-input:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 1px #3182ce; }
-    .settings-select { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-family: inherit; font-size: 14px; background-color: #fff; }
-    .btn-add { background: #edf2f7; color: #2b6cb0; border: 2px dashed #a0aec0; width: 100%; padding: 10px; margin-top: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; }
+    .settings-select { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-family: inherit; font-size: 25px; background-color: #fff; }
+    .btn-add { background: #edf2f7; color: #2b6cb0; border: 2px dashed #a0aec0; width: 100%; padding: 10px; margin-top: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 27px; transition: 0.2s; }
     .btn-add:hover { background: #e2e8f0; border-color: #2b6cb0; }
-    .btn-del { background: #fed7d7; color: #c53030; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .btn-del { background: #fed7d7; color: #c53030; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 23px; font-weight: bold; }
     .btn-del:hover { background: #fc8181; color: white; }
 
     .switch { position: relative; display: inline-block; width: 44px; height: 24px; vertical-align: middle; }
@@ -64,7 +64,7 @@
 
 <div class="card error-card hidden" id="unauthorized-card">
   <h2 style="color: #e53e3e; justify-content: center; margin-bottom: 20px;">存取權限受限</h2>
-  <p id="unauth-msg" style="font-size: 17px; line-height: 1.6; margin-bottom: 30px;"></p>
+  <p id="unauth-msg" style="font-size: 31px; line-height: 1.6; margin-bottom: 30px;"></p>
   <button onclick="reloginSSO()">切換帳號重新登入</button>
 </div>
 
@@ -103,7 +103,7 @@
   <div id="view-settings" class="hidden">
     <div class="card">
       <h3 style="color:#2b6cb0; border-bottom:2px solid #ebf8ff; padding-bottom:10px; margin-top:0;">系統參數設定 (僅限全校管理員)</h3>
-      <p style="color:#e53e3e; font-size:14px; font-weight:bold;">※ 編輯完成後，請務必點擊最下方的「儲存所有設定」才會生效。若不再需要某個項目，可直接點擊「移除」或將其切換為停用。</p>
+      <p style="color:#e53e3e; font-size:25px; font-weight:bold;">※ 編輯完成後，請務必點擊最下方的「儲存所有設定」才會生效。若不再需要某個項目，可直接點擊「移除」或將其切換為停用。</p>
       
       <div id="settingsContainer">
         <h4 style="margin-top:25px; color:#4a5568;">1. 民眾身分類別</h4>
@@ -135,7 +135,7 @@
       </div>
 
       <div style="margin-top: 40px; text-align: center;">
-        <button onclick="saveSettings()" style="background:#38a169; color: white; border: none; border-radius: 6px; font-size:18px; padding:14px 40px; cursor: pointer; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">💾 儲存所有設定</button>
+        <button onclick="saveSettings()" style="background:#38a169; color: white; border: none; border-radius: 6px; font-size:32px; padding:14px 40px; cursor: pointer; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">💾 儲存所有設定</button>
       </div>
     </div>
   </div>
@@ -158,17 +158,17 @@
           <span><strong>陳情人：</strong><span id="modalSubmitter"></span></span>
         </div>
         <div style="margin-top: 6px;"><strong>信件主旨：</strong><span id="modalSubject"></span></div>
-        <div style="margin-top: 6px; color:#4a5568; font-size:13px; max-height:85px; overflow-y:auto; background:#fff; padding:8px; border-radius:4px; border:1px solid #e2e8f0;">
+        <div style="margin-top: 6px; color:#4a5568; font-size:23px; max-height:85px; overflow-y:auto; background:#fff; padding:8px; border-radius:4px; border:1px solid #e2e8f0;">
           <strong>陳情原文：</strong><span id="modalContent"></span>
         </div>
       </div>
       <div style="margin-top: 16px;">
         <label style="display:block; font-weight:bold; margin-bottom:6px; color:#2d3748;">處理紀錄與結案說明 (民眾線上查詢及通知信將顯示此內容)：</label>
-        <textarea id="modalReplyText" rows="6" style="width:100%; box-sizing:border-box; padding:10px; border:1.5px solid #cbd5e0; border-radius:6px; font-family:inherit; font-size:15px; resize:vertical;" placeholder="請輸入具體處理紀錄或結案說明..."></textarea>
+        <textarea id="modalReplyText" rows="6" style="width:100%; box-sizing:border-box; padding:10px; border:1.5px solid #cbd5e0; border-radius:6px; font-family:inherit; font-size:27px; resize:vertical;" placeholder="請輸入具體處理紀錄或結案說明..."></textarea>
       </div>
       <div style="margin-top: 14px; background:#ebf8ff; border:1px solid #bee3f8; padding:10px 14px; border-radius:6px; display:flex; align-items:center;">
         <input type="checkbox" id="modalSendEmail" style="width:18px; height:18px; margin-right:10px; cursor:pointer;" checked>
-        <label for="modalSendEmail" style="cursor:pointer; font-size:14px; color:#2b6cb0; font-weight:bold; margin:0;">同步寄發 Email 通知信給陳情人 (<span id="modalPetitionerEmail"></span>)</label>
+        <label for="modalSendEmail" style="cursor:pointer; font-size:25px; color:#2b6cb0; font-weight:bold; margin:0;">同步寄發 Email 通知信給陳情人 (<span id="modalPetitionerEmail"></span>)</label>
       </div>
     </div>
     <div class="modal-footer">
@@ -276,9 +276,9 @@
       else if (c.status === '已結案' || c.status === '結案') actionBtnText = '已結案/變更修改';
       
       const hideProcessingBtn = (['處理中', '儲存回覆', '已結案', '結案', '不成案'].includes(c.status));
-      const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing('${c.caseId}')" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;
-      const rejectBtnHtml = (c.status === '待驗證') ? `<button onclick="markRejected('${c.caseId}')" style="padding:6px; font-size:13px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
-      const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal('${c.caseId}')" style="padding:6px; font-size:13px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
+      const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing('${c.caseId}')" style="padding:6px; font-size:23px; margin-bottom:5px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;
+      const rejectBtnHtml = (c.status === '待驗證') ? `<button onclick="markRejected('${c.caseId}')" style="padding:6px; font-size:23px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
+      const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal('${c.caseId}')" style="padding:6px; font-size:23px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
 
       return `<tr>
         <td><strong style="color:#2b6cb0;">${c.caseId}</strong></td>

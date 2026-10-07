@@ -256,10 +256,14 @@
     const ssoToken = urlParams.get('token');
 
     if (ssoToken) {
-      // ⚠️ 關鍵修正：不要在這裡立刻清空網址 Token！交給下方驗證成功後再清。
-      await processSSOTokenWithRetry(ssoToken, 2); // 允許最多嘗試 2 次
+      await processSSOTokenWithRetry(ssoToken, 2); 
     } else if (g_sessionKey) {
-      await fetchCases();
+      // 🚀 提早解鎖：直接隱藏 loader，顯示主框架，讓使用者覺得「秒進」
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('main-ui').classList.remove('hidden');
+      document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#4a5568; font-weight:bold;">資料讀取中，請稍候... ⏳</td></tr>';
+      
+      fetchCases(); // 拔掉 await，讓它在背景慢慢抓
     } else {
       reloginSSO();
     }
@@ -294,15 +298,20 @@
         if (json.success) {
           g_sessionKey = json.sessionKey;
           localStorage.setItem('adminSessionKey', g_sessionKey);
-          
-          // ✅ 只有在真的成功拿到身分後，才乾淨地抹除網址上的 token
           window.history.replaceState({}, document.title, window.location.pathname);
           g_isVerifyingToken = false;
 
-          await fetchCases();
-          return; // 成功結束
-          
-        } else if (json.message === "NOT_AUTHORIZED") {
+          // 🚀 驗證成功瞬間提早解鎖畫面！
+          document.getElementById('loader').classList.add('hidden');
+          document.getElementById('main-ui').classList.remove('hidden');
+          document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
+          document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#4a5568; font-weight:bold;">身分驗證成功！案件資料讀取中... ⏳</td></tr>';
+
+          // 拔掉 await，讓抓取試算表資料在背景執行
+          fetchCases();
+          return; 
+        }
+        else if (json.message === "NOT_AUTHORIZED") {
           // 白名單未授權：抹除 token 並停在提示畫面，不跳轉
           window.history.replaceState({}, document.title, window.location.pathname);
           document.getElementById('loader').classList.add('hidden');
@@ -346,6 +355,8 @@
       if (json.success) {
         g_cases = json.data;
         g_availableDepts = json.availableDepts;
+        
+        // 確保防呆
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('main-ui').classList.remove('hidden');
         document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
@@ -356,11 +367,12 @@
 
         renderTable(json.data);
       } else {
-        alert("Session 已過期，請重新登入。");
+        alert("登入逾時或權限變更，請重新登入。");
         reloginSSO();
       }
     } catch (e) {
-      alert("無法取得資料。");
+      // 🚀 新增：萬一試算表讀取失敗，表格內要有對應的錯誤提示
+      document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#e53e3e; font-weight:bold;">無法取得資料，請檢查網路連線後重新整理頁面。</td></tr>';
     }
   }
 

@@ -548,24 +548,41 @@
 
   // 讀取設定並渲染 GUI
   async function loadSettings() {
+    const btn = document.getElementById('btnTabCases');
+    btn.innerText = '讀取中...';
+    btn.disabled = true;
+
+    // 🚀 優化體感：讓表格先顯示讀取中，避免畫面完全空白，讓使用者知道系統有在動
+    document.getElementById('tbody-identities').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#4a5568; font-weight:bold;">資料讀取中，請稍候... ⏳</td></tr>';
+    document.getElementById('tbody-issues').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#4a5568; font-weight:bold;">資料讀取中，請稍候... ⏳</td></tr>';
+    document.getElementById('tbody-admins').innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#4a5568; font-weight:bold;">資料讀取中，請稍候... ⏳</td></tr>';
+
     try {
-      document.getElementById('btnTabCases').innerText = '讀取中...';
       const res = await fetch(API_URL, {
         method: "POST",
         body: JSON.stringify({ action: "adminGetSettings", sessionKey: g_sessionKey }),
         headers: { "Content-Type": "text/plain;charset=utf-8" }
       });
       const json = await res.json();
-      document.getElementById('btnTabCases').innerText = '📋 案件管理';
 
       if (json.success) {
-        g_currentSettings = json.data;
+        // 🛡️ 防呆保護：如果 Firebase 沒資料回傳 null，給予預設空物件，防止畫面當機
+        g_currentSettings = json.data || { identities: {}, issues: {}, admins: {} };
         renderAllSettings();
       } else {
         alert("讀取設定失敗：" + json.message);
+        renderAllSettings(); // 失敗也清空「讀取中」提示
       }
     } catch (e) {
-      alert("連線失敗，請稍後再試。");
+      console.error("設定讀取異常:", e);
+      // 網路異常時不直接 alert 卡死，顯示在表格內，體驗更好
+      document.getElementById('tbody-identities').innerHTML = '<tr><td colspan="3" style="text-align:center; color:#e53e3e; padding:15px;">連線失敗，請重新整理頁面</td></tr>';
+      document.getElementById('tbody-issues').innerHTML = '<tr><td colspan="6" style="text-align:center; color:#e53e3e; padding:15px;">連線失敗，請重新整理頁面</td></tr>';
+      document.getElementById('tbody-admins').innerHTML = '<tr><td colspan="5" style="text-align:center; color:#e53e3e; padding:15px;">連線失敗，請重新整理頁面</td></tr>';
+    } finally {
+      // 🛡️ 關鍵修復：不管成功或失敗，一定要強制把右上角的按鈕復原！
+      btn.innerText = '📋 案件管理';
+      btn.disabled = false;
     }
   }
 
@@ -575,14 +592,30 @@
     document.getElementById('tbody-issues').innerHTML = '';
     document.getElementById('tbody-admins').innerHTML = '';
     
+    // 預防極端狀況的防呆
+    if (!g_currentSettings) return;
+
+    let hasIdentities = false, hasIssues = false, hasAdmins = false;
+
     if (g_currentSettings.identities) {
-      Object.values(g_currentSettings.identities).forEach(data => addIdentityRow(data));
+      Object.values(g_currentSettings.identities).forEach(data => { addIdentityRow(data); hasIdentities = true; });
     }
     if (g_currentSettings.issues) {
-      Object.values(g_currentSettings.issues).forEach(data => addIssueRow(data));
+      Object.values(g_currentSettings.issues).forEach(data => { addIssueRow(data); hasIssues = true; });
     }
     if (g_currentSettings.admins) {
-      Object.values(g_currentSettings.admins).forEach(data => addAdminRow(data));
+      Object.values(g_currentSettings.admins).forEach(data => { addAdminRow(data); hasAdmins = true; });
+    }
+
+    // 🚀 優化體驗：如果該項目完全沒有資料，顯示「尚無資料」的友善提示，而不是留白
+    if (!hasIdentities) {
+      document.getElementById('tbody-identities').innerHTML = '<tr><td colspan="3" style="text-align:center; color:#718096; padding:15px;">尚無資料，請點擊下方新增</td></tr>';
+    }
+    if (!hasIssues) {
+      document.getElementById('tbody-issues').innerHTML = '<tr><td colspan="6" style="text-align:center; color:#718096; padding:15px;">尚無資料，請點擊下方新增</td></tr>';
+    }
+    if (!hasAdmins) {
+      document.getElementById('tbody-admins').innerHTML = '<tr><td colspan="5" style="text-align:center; color:#718096; padding:15px;">尚無資料，請點擊下方新增</td></tr>';
     }
   }
 

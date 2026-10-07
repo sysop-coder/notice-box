@@ -13,7 +13,7 @@
     button:hover { background-color: #2b6cb0; }
     .btn-outline { background: white; color: #4a5568; border: 1px solid #cbd5e0; }
     table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 15px; }
-    th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; vertical-align: top; }
+    th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; vertical-align: middle; }
     th { background: #f7fafc; color: #4a5568; font-weight: bold; }
     .status-badge { padding: 4px 10px; border-radius: 14px; font-size: 13px; font-weight: bold; color: white; background: #3182ce; display: inline-block; }
     
@@ -31,16 +31,9 @@
     /* 確保隱藏優先權最高 */
     .hidden { display: none !important; }
     #loader { 
-      position: fixed; 
-      top: 40%; 
-      left: 0; 
-      width: 100%; 
-      z-index: 9999; 
+      position: fixed; top: 40%; left: 0; width: 100%; z-index: 9999; 
     }
-    #loader h2 { 
-      justify-content: center; 
-      color: #718096; 
-    }
+    #loader h2 { justify-content: center; color: #718096; }
     
     /* 權限阻擋畫面 */
     .error-card { max-width: 500px; margin: 80px auto; text-align: center; padding: 40px; border-top: 5px solid #e53e3e; }
@@ -56,17 +49,34 @@
       box-shadow: 0 10px 25px rgba(0,0,0,0.18); overflow: hidden; animation: modalPop 0.2s ease-out;
     }
     @keyframes modalPop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .modal-header {
-      background: #2b6cb0; color: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;
-    }
+    .modal-header { background: #2b6cb0; color: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
     .modal-header h3 { margin: 0; font-size: 18px; font-weight: bold; }
     .modal-close-btn { background: transparent; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1; padding: 0 4px; }
     .modal-body { padding: 20px; max-height: 72vh; overflow-y: auto; font-size: 14px; }
     .case-summary-card { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; font-size: 14px; }
     .summary-line { display: flex; justify-content: space-between; margin-bottom: 6px; }
-    .modal-footer {
-      padding: 14px 20px; background: #edf2f7; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0;
-    }
+    .modal-footer { padding: 14px 20px; background: #edf2f7; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; }
+
+    /* =========================================
+       系統參數設定專用圖形化樣式 
+       ========================================= */
+    .settings-input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-family: inherit; font-size: 14px; }
+    .settings-input:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 1px #3182ce; }
+    .settings-select { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-family: inherit; font-size: 14px; background-color: #fff; }
+    
+    .btn-add { background: #edf2f7; color: #2b6cb0; border: 2px dashed #a0aec0; width: 100%; padding: 10px; margin-top: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; }
+    .btn-add:hover { background: #e2e8f0; border-color: #2b6cb0; }
+    
+    .btn-del { background: #fed7d7; color: #c53030; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .btn-del:hover { background: #fc8181; color: white; }
+
+    /* 撥動開關 (Toggle Switch) */
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; vertical-align: middle; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e0; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    input:checked + .slider { background-color: #38a169; }
+    input:checked + .slider:before { transform: translateX(20px); }
   </style>
 </head>
 <body>
@@ -89,7 +99,7 @@
       <span class="user-badge" id="userInfo"></span>
     </h2>
     <div style="text-align: right;">
-      <!-- 新增：系統設定與案件管理切換按鈕 -->
+      <!-- 系統設定與案件管理切換按鈕 -->
       <button class="btn-outline hidden" id="btnTabSettings" onclick="switchAdminTab('settings')" style="margin-right: 10px; border-color:#3182ce; color:#3182ce;">⚙️ 系統設定</button>
       <button class="btn-outline hidden" id="btnTabCases" onclick="switchAdminTab('cases')" style="margin-right: 10px; border-color:#38a169; color:#38a169;">📋 案件管理</button>
       <button class="btn-outline" onclick="logout()">安全登出</button>
@@ -116,25 +126,66 @@
     </div>
   </div>
 
-  <!-- 新增的系統設定區塊 -->
+  <!-- 新增：圖形化系統設定區塊 -->
   <div id="view-settings" class="hidden">
     <div class="card">
-      <h3 style="color:#2b6cb0; border-bottom:2px solid #ebf8ff; padding-bottom:10px;">系統參數設定 (僅限全校管理員)</h3>
-      <p style="color:#e53e3e; font-size:14px; font-weight:bold;">※ 編輯完成後，請務必點擊最下方的「儲存所有設定」才會生效。</p>
+      <h3 style="color:#2b6cb0; border-bottom:2px solid #ebf8ff; padding-bottom:10px; margin-top:0;">系統參數設定 (僅限全校管理員)</h3>
+      <p style="color:#e53e3e; font-size:14px; font-weight:bold;">※ 編輯完成後，請務必點擊最下方的「儲存所有設定」才會生效。若不再需要某個項目，可直接點擊「移除」或將其切換為停用。</p>
       
       <div id="settingsContainer">
-        <h4 style="margin-top:20px;">1. 民眾身分類別</h4>
-        <textarea id="jsonIdentities" rows="8" style="width:100%; font-family:monospace; padding:10px; border:1px solid #cbd5e0; border-radius:4px; box-sizing:border-box;"></textarea>
+        
+        <!-- 1. 民眾身分類別 -->
+        <h4 style="margin-top:25px; color:#4a5568;">1. 民眾身分類別</h4>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 65%;">身分類別名稱</th>
+              <th style="width: 20%; text-align:center;">狀態 (啟用/停用)</th>
+              <th style="width: 15%; text-align:center;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-identities"></tbody>
+        </table>
+        <button class="btn-add" onclick="addIdentityRow()">+ 新增身分類別</button>
 
-        <h4 style="margin-top:20px;">2. 議題與派案設定</h4>
-        <textarea id="jsonIssues" rows="12" style="width:100%; font-family:monospace; padding:10px; border:1px solid #cbd5e0; border-radius:4px; box-sizing:border-box;"></textarea>
+        <!-- 2. 議題與派案設定 -->
+        <h4 style="margin-top:35px; color:#4a5568;">2. 議題與派案設定</h4>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 25%;">議題名稱</th>
+              <th style="width: 15%;">主責處室</th>
+              <th style="width: 20%;">主任 Email (必填)</th>
+              <th style="width: 18%;">副知 Email (選填)</th>
+              <th style="width: 12%; text-align:center;">狀態</th>
+              <th style="width: 10%; text-align:center;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-issues"></tbody>
+        </table>
+        <button class="btn-add" onclick="addIssueRow()">+ 新增議題與派案</button>
 
-        <h4 style="margin-top:20px;">3. 後台管理員白名單</h4>
-        <textarea id="jsonAdmins" rows="10" style="width:100%; font-family:monospace; padding:10px; border:1px solid #cbd5e0; border-radius:4px; box-sizing:border-box;"></textarea>
+        <!-- 3. 後台管理員白名單 -->
+        <h4 style="margin-top:35px; color:#4a5568;">3. 後台管理員白名單</h4>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 30%;">st 登入帳號 (Email)</th>
+              <th style="width: 25%;">姓名 / 職稱</th>
+              <th style="width: 18%;">管轄權限</th>
+              <th style="width: 15%; text-align:center;">狀態</th>
+              <th style="width: 12%; text-align:center;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-admins"></tbody>
+        </table>
+        <button class="btn-add" onclick="addAdminRow()">+ 新增管理員</button>
+
       </div>
 
-      <div style="margin-top: 25px; text-align: center;">
-        <button onclick="saveSettings()" style="background:#38a169; color: white; border: none; border-radius: 6px; font-size:16px; padding:12px 30px; cursor: pointer;">💾 儲存所有設定</button>
+      <!-- 儲存按鈕 -->
+      <div style="margin-top: 40px; text-align: center;">
+        <button onclick="saveSettings()" style="background:#38a169; color: white; border: none; border-radius: 6px; font-size:18px; padding:14px 40px; cursor: pointer; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">💾 儲存所有設定</button>
       </div>
     </div>
   </div>
@@ -188,14 +239,13 @@
 <script>
   // ================= ⚠️ 請修改為您的 GAS API 網址 ⚠️ =================
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec";
-  // 請修改為您的 SSO 登入頁面網址
   const SSO_LOGIN_URL = "https://sysop-coder.github.io/sso/"; 
 
   let g_sessionKey = sessionStorage.getItem('adminSessionKey');
   let g_availableDepts = [];
   let g_cases = [];
   let g_activeRowIndex = null;
-  let g_currentSettings = null; // 存放當前的系統設定
+  let g_currentSettings = null; 
 
   window.onload = async function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -222,7 +272,6 @@
     window.location.reload();
   }
 
-  // 向 GAS 驗證 Token
   async function processSSOToken(token) {
     try {
       const res = await fetch(API_URL, {
@@ -249,7 +298,6 @@
     }
   }
 
-  // 抓取案件清單
   async function fetchCases() {
     try {
       const res = await fetch(API_URL, {
@@ -266,7 +314,6 @@
         document.getElementById('main-ui').classList.remove('hidden');
         document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
         
-        // 🌟 新增判斷：若是全校權限，顯示設定按鈕
         if (json.user.deptPerm === '全校') {
           document.getElementById('btnTabSettings').classList.remove('hidden');
         }
@@ -281,7 +328,6 @@
     }
   }
 
-  // 渲染表格
   function renderTable(cases) {
     const tbody = document.getElementById('caseBody');
     tbody.innerHTML = cases.map(c => {
@@ -307,9 +353,7 @@
       
       const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案' || c.status === '不成案');
       const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing(${c.rowIndex})" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;
-
       const rejectBtnHtml = (c.status === '待驗證') ? `<button onclick="markRejected(${c.rowIndex})" style="padding:6px; font-size:13px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
-
       const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
 
       return `<tr>
@@ -325,47 +369,29 @@
         <td style="max-width:280px;"><strong>${c.subject}</strong><br><small style="color:#4a5568;">${c.content}</small></td>
         <td><strong>${c.name}</strong><br>${c.phone}</td>
         <td><span class="status-badge tag-${c.status}">${c.status}</span></td>
-        <td>
-          ${processBtnHtml}
-          ${rejectBtnHtml}
-          ${actionBtnHtml}
-        </td>
+        <td>${processBtnHtml}${rejectBtnHtml}${actionBtnHtml}</td>
       </tr>`;
     }).join('');
   }
 
   async function markProcessing(rowIndex) {
     const c = g_cases.find(x => x.rowIndex === rowIndex);
-    if (c) {
-      c.status = '處理中';
-      renderTable(g_cases);
-    }
+    if (c) { c.status = '處理中'; renderTable(g_cases); }
     executeUpdateRequest(rowIndex, '處理中', null, null, false);
   }
 
   async function markRejected(rowIndex) {
-    if (!confirm("確定要將此案件直接標記為「不成案」嗎？")) {
-      return;
-    }
+    if (!confirm("確定要將此案件直接標記為「不成案」嗎？")) return;
     const c = g_cases.find(x => x.rowIndex === rowIndex);
-    if (c) {
-      c.status = '不成案';
-      renderTable(g_cases);
-    }
+    if (c) { c.status = '不成案'; renderTable(g_cases); }
     executeUpdateRequest(rowIndex, '不成案', null, null, false);
   }
 
   function openReplyModal(rowIndex) {
     const c = g_cases.find(x => x.rowIndex === rowIndex);
     if (!c) return;
-
-    if (c.status === '待驗證') {
-      alert('此案件尚未完成 Email 驗證，無法進行結案回覆！');
-      return;
-    }
-
+    if (c.status === '待驗證') { alert('此案件尚未完成 Email 驗證，無法進行結案回覆！'); return; }
     g_activeRowIndex = rowIndex;
-
     document.getElementById('modalCaseId').innerText = c.caseId;
     document.getElementById('modalStatusBadge').innerHTML = `<span class="status-badge tag-${c.status}">${c.status}</span>`;
     document.getElementById('modalDept').innerText = c.dept;
@@ -376,14 +402,8 @@
     document.getElementById('modalReplyText').value = c.reply || '';
 
     const sendEmailCheckbox = document.getElementById('modalSendEmail');
-    if (!c.email) {
-      sendEmailCheckbox.checked = false;
-      sendEmailCheckbox.disabled = true;
-    } else {
-      sendEmailCheckbox.disabled = false;
-      sendEmailCheckbox.checked = true;
-    }
-
+    if (!c.email) { sendEmailCheckbox.checked = false; sendEmailCheckbox.disabled = true; } 
+    else { sendEmailCheckbox.disabled = false; sendEmailCheckbox.checked = true; }
     document.getElementById('replyModal').classList.remove('hidden');
   }
 
@@ -398,14 +418,11 @@
     const sendEmailToUser = document.getElementById('modalSendEmail').checked;
     
     if (isCloseCase && !replyNotes) {
-      if (!confirm("您尚未填寫任何處理紀錄或結案說明，確定要直接結案嗎？")) {
-        return;
-      }
+      if (!confirm("您尚未填寫任何處理紀錄或結案說明，確定要直接結案嗎？")) return;
     }
 
     const newStatus = isCloseCase ? '已結案' : '儲存回覆';
     const targetRowIndex = g_activeRowIndex; 
-    
     closeReplyModal();
     
     const c = g_cases.find(x => x.rowIndex === targetRowIndex);
@@ -414,7 +431,6 @@
       if (replyNotes) c.reply = replyNotes;
       renderTable(g_cases);
     }
-    
     executeUpdateRequest(targetRowIndex, newStatus, replyNotes, null, sendEmailToUser);
   }
 
@@ -422,18 +438,12 @@
     const selectEl = document.getElementById(`dept_${rowIndex}`);
     const newDept = selectEl.value;
     if (newDept === oldDept) return;
-
     if (!confirm(`確定要將此案件由【${oldDept}】轉派給【${newDept}】嗎？\n系統將會自動寄送通知信給新處室主任。`)) {
       selectEl.value = oldDept;
       return;
     }
-
     const c = g_cases.find(x => x.rowIndex === rowIndex);
-    if (c) {
-      c.dept = newDept;
-      renderTable(g_cases);
-    }
-
+    if (c) { c.dept = newDept; renderTable(g_cases); }
     executeUpdateRequest(rowIndex, null, null, newDept, false);
   }
 
@@ -446,22 +456,33 @@
       if (sendEmailToUser) payload.sendEmailToUser = true;
 
       const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify(payload),
+        method: "POST", body: JSON.stringify(payload),
         headers: { "Content-Type": "text/plain;charset=utf-8" }
       });
       const json = await res.json();
-      if (json.success) {
-        fetchCases(); 
-      } else {
-        alert("更新失敗: " + json.message);
-      }
-    } catch (e) {
-      alert("連線失敗，請檢查網路。");
-    }
+      if (json.success) fetchCases(); 
+      else alert("更新失敗: " + json.message);
+    } catch (e) { alert("連線失敗，請檢查網路。"); }
   }
 
-  // ================= 系統設定控制邏輯 =================
+
+  // =========================================================
+  // 系統參數設定專用控制邏輯 (GUI 版本)
+  // =========================================================
+  
+  // 防呆用的 HTML 脫逸處理
+  function escapeHtml(text) {
+    return (text || '').toString()
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+
+  // 產生唯一的 ID
+  function generateId(prefix) { 
+    return prefix + '_' + Math.random().toString(36).substr(2, 8); 
+  }
+
+  // 切換分頁
   function switchAdminTab(tab) {
     if (tab === 'settings') {
       document.getElementById('view-cases').classList.add('hidden');
@@ -477,6 +498,7 @@
     }
   }
 
+  // 讀取設定並渲染 GUI
   async function loadSettings() {
     try {
       document.getElementById('btnTabCases').innerText = '讀取中...';
@@ -490,10 +512,7 @@
 
       if (json.success) {
         g_currentSettings = json.data;
-        // 將 JSON 資料轉為易讀的格式顯示在 textarea 中
-        document.getElementById('jsonIdentities').value = JSON.stringify(g_currentSettings.identities || {}, null, 2);
-        document.getElementById('jsonIssues').value = JSON.stringify(g_currentSettings.issues || {}, null, 2);
-        document.getElementById('jsonAdmins').value = JSON.stringify(g_currentSettings.admins || {}, null, 2);
+        renderAllSettings();
       } else {
         alert("讀取設定失敗：" + json.message);
       }
@@ -502,17 +521,123 @@
     }
   }
 
+  // 渲染所有表格
+  function renderAllSettings() {
+    document.getElementById('tbody-identities').innerHTML = '';
+    document.getElementById('tbody-issues').innerHTML = '';
+    document.getElementById('tbody-admins').innerHTML = '';
+    
+    if (g_currentSettings.identities) {
+      Object.values(g_currentSettings.identities).forEach(data => addIdentityRow(data));
+    }
+    if (g_currentSettings.issues) {
+      Object.values(g_currentSettings.issues).forEach(data => addIssueRow(data));
+    }
+    if (g_currentSettings.admins) {
+      Object.values(g_currentSettings.admins).forEach(data => addAdminRow(data));
+    }
+  }
+
+  // 移除該列 DOM
+  function removeRow(btn) {
+    btn.closest('tr').remove();
+  }
+
+  // 1. 新增身分類別
+  function addIdentityRow(data = { id: generateId('id'), name: '', active: true }) {
+    const tr = document.createElement('tr');
+    tr.className = 'row-identity';
+    tr.dataset.id = data.id;
+    tr.innerHTML = `
+      <td><input type="text" class="settings-input input-name" value="${escapeHtml(data.name)}" placeholder="例如：本校學生"></td>
+      <td style="text-align:center;">
+        <label class="switch"><input type="checkbox" class="input-active" ${data.active ? 'checked' : ''}><span class="slider"></span></label>
+      </td>
+      <td style="text-align:center;"><button class="btn-del" onclick="removeRow(this)">移除</button></td>
+    `;
+    document.getElementById('tbody-identities').appendChild(tr);
+  }
+
+  // 2. 新增議題與派案
+  function addIssueRow(data = { id: generateId('iss'), name: '', dept: '教務處', directorEmail: '', ccEmail: '', active: true }) {
+    const depts = ['教務處', '學務處', '總務處', '輔導室', '校長室'];
+    const deptSelect = `<select class="settings-select input-dept">${depts.map(d => `<option value="${d}" ${d === data.dept ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
+    
+    const tr = document.createElement('tr');
+    tr.className = 'row-issue';
+    tr.dataset.id = data.id;
+    tr.innerHTML = `
+      <td><input type="text" class="settings-input input-name" value="${escapeHtml(data.name)}" placeholder="議題名稱"></td>
+      <td>${deptSelect}</td>
+      <td><input type="email" class="settings-input input-director" value="${escapeHtml(data.directorEmail)}" placeholder="公務 Email"></td>
+      <td><input type="email" class="settings-input input-cc" value="${escapeHtml(data.ccEmail)}" placeholder="選填"></td>
+      <td style="text-align:center;">
+        <label class="switch"><input type="checkbox" class="input-active" ${data.active ? 'checked' : ''}><span class="slider"></span></label>
+      </td>
+      <td style="text-align:center;"><button class="btn-del" onclick="removeRow(this)">移除</button></td>
+    `;
+    document.getElementById('tbody-issues').appendChild(tr);
+  }
+
+  // 3. 新增管理員
+  function addAdminRow(data = { email: '', name: '', deptPerm: '全校', active: true }) {
+    const perms = ['全校', '教務處', '學務處', '總務處', '輔導室', '校長室'];
+    const permSelect = `<select class="settings-select input-deptPerm">${perms.map(d => `<option value="${d}" ${d === data.deptPerm ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
+    
+    const tr = document.createElement('tr');
+    tr.className = 'row-admin';
+    tr.innerHTML = `
+      <td><input type="email" class="settings-input input-email" value="${escapeHtml(data.email)}" placeholder="帳號 Email"></td>
+      <td><input type="text" class="settings-input input-name" value="${escapeHtml(data.name)}" placeholder="姓名或職稱"></td>
+      <td>${permSelect}</td>
+      <td style="text-align:center;">
+        <label class="switch"><input type="checkbox" class="input-active" ${data.active ? 'checked' : ''}><span class="slider"></span></label>
+      </td>
+      <td style="text-align:center;"><button class="btn-del" onclick="removeRow(this)">移除</button></td>
+    `;
+    document.getElementById('tbody-admins').appendChild(tr);
+  }
+
+  // 儲存設定 (從 GUI DOM 取值並打包)
   async function saveSettings() {
     if (!confirm("確定要儲存並覆寫所有系統設定嗎？民眾端選單也會同步更新。")) return;
     
-    try {
-      // 從 textarea 抓回修改後的 JSON 並解析
-      const newSettings = {
-        identities: JSON.parse(document.getElementById('jsonIdentities').value),
-        issues: JSON.parse(document.getElementById('jsonIssues').value),
-        admins: JSON.parse(document.getElementById('jsonAdmins').value)
-      };
+    const newSettings = { identities: {}, issues: {}, admins: {} };
 
+    // 收集身分資料
+    document.querySelectorAll('#tbody-identities .row-identity').forEach(row => {
+      const id = row.dataset.id;
+      const name = row.querySelector('.input-name').value.trim();
+      const active = row.querySelector('.input-active').checked;
+      if (name) newSettings.identities[id] = { id, name, active };
+    });
+
+    // 收集議題資料
+    document.querySelectorAll('#tbody-issues .row-issue').forEach(row => {
+      const id = row.dataset.id;
+      const name = row.querySelector('.input-name').value.trim();
+      const dept = row.querySelector('.input-dept').value;
+      const directorEmail = row.querySelector('.input-director').value.trim().toLowerCase();
+      const ccEmail = row.querySelector('.input-cc').value.trim().toLowerCase();
+      const active = row.querySelector('.input-active').checked;
+      if (name && directorEmail) { // 議題名稱與主任信箱為必填
+        newSettings.issues[id] = { id, name, dept, directorEmail, ccEmail, active };
+      }
+    });
+
+    // 收集管理員資料
+    document.querySelectorAll('#tbody-admins .row-admin').forEach(row => {
+      const email = row.querySelector('.input-email').value.trim().toLowerCase();
+      const name = row.querySelector('.input-name').value.trim();
+      const deptPerm = row.querySelector('.input-deptPerm').value;
+      const active = row.querySelector('.input-active').checked;
+      if (email && name) {
+        const key = email.replace(/\./g, '_'); // Firebase key 轉換
+        newSettings.admins[key] = { email, name, deptPerm, active };
+      }
+    });
+
+    try {
       const res = await fetch(API_URL, {
         method: "POST",
         body: JSON.stringify({ action: "adminSaveSettings", sessionKey: g_sessionKey, data: newSettings }),
@@ -521,12 +646,13 @@
       const json = await res.json();
 
       if (json.success) {
-        alert("✅ 設定已成功儲存！");
+        alert("✅ 系統參數已成功儲存！");
+        loadSettings(); // 儲存後重新整理畫面
       } else {
         alert("儲存失敗：" + json.message);
       }
     } catch (e) {
-      alert("❌ 儲存失敗！請檢查輸入的內容是否符合正確的 JSON 格式（括號或逗號是否漏掉）。");
+      alert("❌ 儲存失敗！連線發生錯誤。");
     }
   }
 </script>

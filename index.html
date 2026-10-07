@@ -110,19 +110,27 @@
 </div>
 
 <script>
-  // ================= ⚠️ 請修改為您的 GAS API 網址 ⚠️ =================
+  // ================= API 與 Firebase 網址設定 =================
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec"; 
+  const FIREBASE_PUBLIC_URL = "https://notice-box-3705e-default-rtdb.asia-southeast1.firebasedatabase.app/public_settings.json";
 
-  // 初始化取得下拉選單
+  // 初始化取得下拉選單 (改由 Firebase 極速載入)
   window.onload = async function() {
     try {
-      const res = await fetch(API_URL + "?action=getDropdownData");
-      const json = await res.json();
-      if(json.success) {
-        document.getElementById('identity').innerHTML = '<option value="">請選擇</option>' + json.data.identities.map(i => `<option value="${i}">${i}</option>`).join('');
-        document.getElementById('issue').innerHTML = '<option value="">請選擇</option>' + json.data.issues.map(i => `<option value="${i}">${i}</option>`).join('');
+      // 直接向 Firebase 讀取公開選單資料，跳過 GAS 冷啟動
+      const res = await fetch(FIREBASE_PUBLIC_URL);
+      const data = await res.json();
+      
+      if (data) {
+        document.getElementById('identity').innerHTML = '<option value="">請選擇</option>' + 
+          (data.identities || []).map(i => `<option value="${i}">${i}</option>`).join('');
+        document.getElementById('issue').innerHTML = '<option value="">請選擇</option>' + 
+          (data.issues || []).map(i => `<option value="${i}">${i}</option>`).join('');
       }
-    } catch(e) { alert("選單載入失敗，請稍後再試。"); }
+    } catch(e) { 
+      alert("選單載入失敗，請檢查網路連線。"); 
+      console.error(e);
+    }
   };
 
   function switchTab(tab) {

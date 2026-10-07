@@ -22,7 +22,6 @@
     .tag-已成案 { background: #bee3f8; color: #2b6cb0; }
     .tag-處理中 { background: #e9d8fd; color: #6b46c1; }
     .tag-已結案, .tag-結案 { background: #c6f6d5; color: #22543d; }
-    /* 將背景改為與按鈕一致的藍色 (#3182ce)，字體改為白色 */
     .tag-儲存回覆 { background: #3182ce; color: white; }
     .tag-不成案 { background: #fed7d7; color: #c53030; }
     
@@ -39,7 +38,7 @@
       z-index: 9999; 
     }
     #loader h2 { 
-      justify-content: center; /* 覆寫全域 h2 的設定，強制讓文字置中 */
+      justify-content: center; 
       color: #718096; 
     }
     
@@ -90,25 +89,54 @@
       <span class="user-badge" id="userInfo"></span>
     </h2>
     <div style="text-align: right;">
+      <!-- 新增：系統設定與案件管理切換按鈕 -->
+      <button class="btn-outline hidden" id="btnTabSettings" onclick="switchAdminTab('settings')" style="margin-right: 10px; border-color:#3182ce; color:#3182ce;">⚙️ 系統設定</button>
+      <button class="btn-outline hidden" id="btnTabCases" onclick="switchAdminTab('cases')" style="margin-right: 10px; border-color:#38a169; color:#38a169;">📋 案件管理</button>
       <button class="btn-outline" onclick="logout()">安全登出</button>
     </div>
   </div>
 
-  <div class="card">
-    <table id="caseTable">
-      <thead>
-        <tr>
-          <th style="width: 130px;">案件編號</th>
-          <th style="width: 100px;">日期</th>
-          <th style="width: 140px;">主責處室</th>
-          <th>主旨與內容</th>
-          <th style="width: 160px;">陳情人資訊</th>
-          <th style="width: 90px;">狀態</th>
-          <th style="width: 150px;">操作 (處理/結案)</th>
-        </tr>
-      </thead>
-      <tbody id="caseBody"></tbody>
-    </table>
+  <!-- 既有的案件管理區塊 -->
+  <div id="view-cases">
+    <div class="card">
+      <table id="caseTable">
+        <thead>
+          <tr>
+            <th style="width: 130px;">案件編號</th>
+            <th style="width: 100px;">日期</th>
+            <th style="width: 140px;">主責處室</th>
+            <th>主旨與內容</th>
+            <th style="width: 160px;">陳情人資訊</th>
+            <th style="width: 90px;">狀態</th>
+            <th style="width: 150px;">操作 (處理/結案)</th>
+          </tr>
+        </thead>
+        <tbody id="caseBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 新增的系統設定區塊 -->
+  <div id="view-settings" class="hidden">
+    <div class="card">
+      <h3 style="color:#2b6cb0; border-bottom:2px solid #ebf8ff; padding-bottom:10px;">系統參數設定 (僅限全校管理員)</h3>
+      <p style="color:#e53e3e; font-size:14px; font-weight:bold;">※ 編輯完成後，請務必點擊最下方的「儲存所有設定」才會生效。</p>
+      
+      <div id="settingsContainer">
+        <h4 style="margin-top:20px;">1. 民眾身分類別</h4>
+        <textarea id="jsonIdentities" rows="8" style="width:100%; font-family:monospace; padding:10px; border:1px solid #cbd5e0; border-radius:4px; box-sizing:border-box;"></textarea>
+
+        <h4 style="margin-top:20px;">2. 議題與派案設定</h4>
+        <textarea id="jsonIssues" rows="12" style="width:100%; font-family:monospace; padding:10px; border:1px solid #cbd5e0; border-radius:4px; box-sizing:border-box;"></textarea>
+
+        <h4 style="margin-top:20px;">3. 後台管理員白名單</h4>
+        <textarea id="jsonAdmins" rows="10" style="width:100%; font-family:monospace; padding:10px; border:1px solid #cbd5e0; border-radius:4px; box-sizing:border-box;"></textarea>
+      </div>
+
+      <div style="margin-top: 25px; text-align: center;">
+        <button onclick="saveSettings()" style="background:#38a169; color: white; border: none; border-radius: 6px; font-size:16px; padding:12px 30px; cursor: pointer;">💾 儲存所有設定</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -167,6 +195,7 @@
   let g_availableDepts = [];
   let g_cases = [];
   let g_activeRowIndex = null;
+  let g_currentSettings = null; // 存放當前的系統設定
 
   window.onload = async function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -236,6 +265,12 @@
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('main-ui').classList.remove('hidden');
         document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
+        
+        // 🌟 新增判斷：若是全校權限，顯示設定按鈕
+        if (json.user.deptPerm === '全校') {
+          document.getElementById('btnTabSettings').classList.remove('hidden');
+        }
+
         renderTable(json.data);
       } else {
         alert("Session 已過期，請重新登入。");
@@ -252,34 +287,29 @@
     tbody.innerHTML = cases.map(c => {
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
       
-      // 1. 動態變更主要按鈕的顯示、文字與顏色
       let actionBtnText = '填寫回覆'; 
       let actionBtnBg = '#38a169'; 
       let showActionBtn = true; 
       
       if (c.status === '待驗證') {
-        showActionBtn = false; // 待驗證時，隱藏結案回覆按鈕
+        showActionBtn = false; 
       } else if (c.status === '處理中') {
         actionBtnText = '填寫回覆';
       } else if (c.status === '儲存回覆') {
         actionBtnText = '下一步：結案';
         actionBtnBg = '#3182ce'; 
       } else if (c.status === '不成案') {
-        // ★ 針對不成案狀態，改為紅底白字
         actionBtnText = '不成案';
         actionBtnBg = '#e53e3e'; 
       } else if (c.status === '已結案' || c.status === '結案') {
         actionBtnText = '已結案/變更修改';
       }
       
-      // 2. 標記處理中按鈕的消失邏輯
       const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案' || c.status === '不成案');
       const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing(${c.rowIndex})" style="padding:6px; font-size:13px; margin-bottom:5px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;
 
-      // 3. 新增「不成案」紅底白字按鈕 (僅在待驗證時顯示)
       const rejectBtnHtml = (c.status === '待驗證') ? `<button onclick="markRejected(${c.rowIndex})" style="padding:6px; font-size:13px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
 
-      // 4. 結案回覆主要按鈕
       const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal(${c.rowIndex})" style="padding:6px; font-size:13px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
 
       return `<tr>
@@ -304,7 +334,6 @@
     }).join('');
   }
 
-  // 1. 標記處理中 (加入零延遲更新機制)
   async function markProcessing(rowIndex) {
     const c = g_cases.find(x => x.rowIndex === rowIndex);
     if (c) {
@@ -314,7 +343,6 @@
     executeUpdateRequest(rowIndex, '處理中', null, null, false);
   }
 
-  // ★ 新增：標記不成案 (含防呆確認與零延遲更新機制)
   async function markRejected(rowIndex) {
     if (!confirm("確定要將此案件直接標記為「不成案」嗎？")) {
       return;
@@ -327,7 +355,6 @@
     executeUpdateRequest(rowIndex, '不成案', null, null, false);
   }
 
-  // 2. 打開結案/回覆 Modal 視窗 (修復點：確保函式存在)
   function openReplyModal(rowIndex) {
     const c = g_cases.find(x => x.rowIndex === rowIndex);
     if (!c) return;
@@ -360,13 +387,11 @@
     document.getElementById('replyModal').classList.remove('hidden');
   }
 
-  // 關閉 Modal 視窗 (修復點：確保函式存在)
   function closeReplyModal() {
     document.getElementById('replyModal').classList.add('hidden');
     g_activeRowIndex = null;
   }
 
-  // 3. 提交 Modal 中的回覆 (加入零延遲更新機制)
   async function submitModalReply(isCloseCase) {
     if (!g_activeRowIndex) return;
     const replyNotes = document.getElementById('modalReplyText').value.trim();
@@ -393,7 +418,6 @@
     executeUpdateRequest(targetRowIndex, newStatus, replyNotes, null, sendEmailToUser);
   }
 
-  // 4. 觸發轉派 (加入零延遲更新機制)
   async function reassignCase(rowIndex, oldDept) {
     const selectEl = document.getElementById(`dept_${rowIndex}`);
     const newDept = selectEl.value;
@@ -413,7 +437,6 @@
     executeUpdateRequest(rowIndex, null, null, newDept, false);
   }
 
-  // 執行 API 請求 (幕後自動同步至 Google Server)
   async function executeUpdateRequest(rowIndex, status, note, newDept, sendEmailToUser) {
     try {
       const payload = { action: "adminUpdateCase", sessionKey: g_sessionKey, rowIndex: rowIndex };
@@ -429,13 +452,81 @@
       });
       const json = await res.json();
       if (json.success) {
-        // 更新成功後確保資料與伺服器完全一致
         fetchCases(); 
       } else {
         alert("更新失敗: " + json.message);
       }
     } catch (e) {
       alert("連線失敗，請檢查網路。");
+    }
+  }
+
+  // ================= 系統設定控制邏輯 =================
+  function switchAdminTab(tab) {
+    if (tab === 'settings') {
+      document.getElementById('view-cases').classList.add('hidden');
+      document.getElementById('view-settings').classList.remove('hidden');
+      document.getElementById('btnTabSettings').classList.add('hidden');
+      document.getElementById('btnTabCases').classList.remove('hidden');
+      loadSettings(); // 切換時自動讀取最新設定
+    } else {
+      document.getElementById('view-settings').classList.add('hidden');
+      document.getElementById('view-cases').classList.remove('hidden');
+      document.getElementById('btnTabCases').classList.add('hidden');
+      document.getElementById('btnTabSettings').classList.remove('hidden');
+    }
+  }
+
+  async function loadSettings() {
+    try {
+      document.getElementById('btnTabCases').innerText = '讀取中...';
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminGetSettings", sessionKey: g_sessionKey }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+      document.getElementById('btnTabCases').innerText = '📋 案件管理';
+
+      if (json.success) {
+        g_currentSettings = json.data;
+        // 將 JSON 資料轉為易讀的格式顯示在 textarea 中
+        document.getElementById('jsonIdentities').value = JSON.stringify(g_currentSettings.identities || {}, null, 2);
+        document.getElementById('jsonIssues').value = JSON.stringify(g_currentSettings.issues || {}, null, 2);
+        document.getElementById('jsonAdmins').value = JSON.stringify(g_currentSettings.admins || {}, null, 2);
+      } else {
+        alert("讀取設定失敗：" + json.message);
+      }
+    } catch (e) {
+      alert("連線失敗，請稍後再試。");
+    }
+  }
+
+  async function saveSettings() {
+    if (!confirm("確定要儲存並覆寫所有系統設定嗎？民眾端選單也會同步更新。")) return;
+    
+    try {
+      // 從 textarea 抓回修改後的 JSON 並解析
+      const newSettings = {
+        identities: JSON.parse(document.getElementById('jsonIdentities').value),
+        issues: JSON.parse(document.getElementById('jsonIssues').value),
+        admins: JSON.parse(document.getElementById('jsonAdmins').value)
+      };
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminSaveSettings", sessionKey: g_sessionKey, data: newSettings }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        alert("✅ 設定已成功儲存！");
+      } else {
+        alert("儲存失敗：" + json.message);
+      }
+    } catch (e) {
+      alert("❌ 儲存失敗！請檢查輸入的內容是否符合正確的 JSON 格式（括號或逗號是否漏掉）。");
     }
   }
 </script>

@@ -146,7 +146,10 @@
   async function handleFormSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
-    btn.disabled = true; btn.innerText = '送出中...';
+    
+    // 🚀 優化 1：按鈕加上明確的動態提示
+    btn.disabled = true; 
+    btn.innerText = '資料傳送中，請稍候... ⏳';
 
     const formData = {
       name: document.getElementById('name').value, phone: document.getElementById('phone').value,
@@ -159,7 +162,7 @@
       const res = await fetch(API_URL, {
         method: "POST",
         body: JSON.stringify({ action: "submitForm", data: formData }),
-        headers: { "Content-Type": "text/plain;charset=utf-8" } // 避免 CORS 預檢請求
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
       });
       const json = await res.json();
       
@@ -167,15 +170,28 @@
         document.getElementById('step-form').classList.add('hidden');
         document.getElementById('step-success').classList.remove('hidden');
         document.getElementById('displayCaseId').innerText = json.caseId;
-      } else { alert("錯誤: " + json.message); btn.disabled = false; btn.innerText = '送出陳情信件'; }
-    } catch (e) { alert("網路連線失敗！"); btn.disabled = false; btn.innerText = '送出陳情信件'; }
+      } else { 
+        alert("系統回報錯誤: " + json.message); 
+        btn.disabled = false; 
+        btn.innerText = '送出陳情信件'; 
+      }
+    } catch (e) { 
+      // 🚀 優化 2：遇到網路逾時，給予「去收信」的防呆提示，避免民眾瘋狂連點
+      console.error("表單送出連線異常:", e);
+      alert("⚠️ 系統連線回應逾時或不穩定！\n\n您的陳情資料「可能」已成功寫入系統。請先前往您的電子信箱檢查是否收到「確認信函」。\n\n若 3 分鐘後仍未收到信件，請再重新送出一次，感謝您的配合。"); 
+      btn.disabled = false; 
+      btn.innerText = '重新送出陳情信件'; 
+    }
   }
 
   // 查詢進度 (GET JSON API)
   async function handleQuerySubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('queryBtn');
-    btn.disabled = true; btn.innerText = '查詢中...';
+    
+    // 🚀 優化：查詢按鈕也加上動態提示
+    btn.disabled = true; 
+    btn.innerText = '系統查詢中，請稍候... ⏳';
     
     const cid = document.getElementById('queryCaseId').value;
     const phone = document.getElementById('queryPhone').value;
@@ -183,19 +199,33 @@
     try {
       const res = await fetch(`${API_URL}?action=queryCaseStatus&caseId=${encodeURIComponent(cid)}&phone=${encodeURIComponent(phone)}`);
       const json = await res.json();
-      btn.disabled = false; btn.innerText = '查詢案件進度';
+      btn.disabled = false; 
+      btn.innerText = '查詢案件進度';
 
       if (json.success) {
         const d = json.data;
         document.getElementById('resCaseId').innerText = d.caseId;
         document.getElementById('resDate').innerText = d.createdAt;
         document.getElementById('resDept').innerText = d.dept;
-        document.getElementById('resStatusTag').innerText = d.status;
+        
+        // 🚀 優化：根據案件狀態改變標籤底色 (紅色或藍色)
+        const tagEl = document.getElementById('resStatusTag');
+        tagEl.innerText = d.status;
+        tagEl.style.background = (d.status === '待驗證' || d.status === '不成案') ? '#e53e3e' : '#3182ce';
+        
         document.getElementById('resStatusDesc').innerText = d.statusDesc;
         document.getElementById('resReply').innerHTML = d.reply.replace(/\n/g, '<br>');
         document.getElementById('queryResultArea').classList.remove('hidden');
-      } else { alert(json.message); document.getElementById('queryResultArea').classList.add('hidden'); }
-    } catch(e) { alert("查詢失敗"); btn.disabled = false; btn.innerText = '查詢案件進度'; }
+      } else { 
+        alert(json.message); 
+        document.getElementById('queryResultArea').classList.add('hidden'); 
+      }
+    } catch(e) { 
+      console.error("查詢連線異常:", e);
+      alert("網路連線不穩定，請稍後再試。"); 
+      btn.disabled = false; 
+      btn.innerText = '查詢案件進度'; 
+    }
   }
 </script>
 </body>

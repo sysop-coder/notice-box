@@ -241,15 +241,13 @@
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec";
   const SSO_LOGIN_URL = "https://sysop-coder.github.io/sso/"; 
 
-  // ✨ 升級：改用 localStorage 讓同仁不必頻繁重新登入
+ // ✨ 替換 g_activeRowIndex 為 g_activeCaseId
   let g_sessionKey = localStorage.getItem('adminSessionKey');
   let g_availableDepts = [];
   let g_cases = [];
-  let g_activeRowIndex = null;
+  let g_activeCaseId = null; // 改用 caseId 追蹤目前處理的案件
   let g_currentSettings = null; 
-  
-  // ✨ 新增：防重複發送的請求鎖
-  let g_isVerifyingToken = false; 
+  let g_isVerifyingToken = false;
 
   window.onload = async function() {
     const urlParams = new URLSearchParams(window.location.search);

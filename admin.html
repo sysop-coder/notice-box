@@ -13,6 +13,8 @@
     button { padding: 12px 18px; font-size: 19px; border: none; border-radius: 6px; background-color: #3182ce; color: white; cursor: pointer; transition: 0.2s; font-weight: bold; }
     button:hover { background-color: #2b6cb0; }
     .btn-outline { background: white; color: #4a5568; border: 1px solid #cbd5e0; }
+    /* 新增：按鈕禁用時的樣式 */
+    .btn-outline:disabled { background: #edf2f7; color: #a0aec0; border-color: #e2e8f0; cursor: not-allowed; }
     
     /* 表格與標籤加大 */
     table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 18px; }
@@ -84,15 +86,16 @@
 <div class="hidden" id="main-ui">
   <div class="card">
     <h2>
-      豐東國中民意信箱 - 管理後台
-      <span class="user-badge" id="userInfo"></span>
+      <span>豐東國中民意信箱 - 管理後台</span>
+      <!-- 需求1：按鈕與狀態標籤放在同一個 flex 容器內，並排靠右 -->
+      <div style="display: flex; align-items: center; gap: 12px; font-size: 18px;">
+        <span class="user-badge" id="userInfo"></span>
+        <button class="btn-outline hidden" id="btnTabSettings" onclick="switchAdminTab('settings')" style="border-color:#3182ce; color:#3182ce; padding: 8px 14px; font-size: 16px;">⚙️ 系統設定</button>
+        <button class="btn-outline hidden" id="btnTabCases" onclick="switchAdminTab('cases')" style="border-color:#38a169; color:#38a169; padding: 8px 14px; font-size: 16px;">📋 案件管理</button>
+        <!-- 需求2：安全登出按鈕改為紅色背景、白色文字 -->
+        <button onclick="logout()" style="background-color: #e53e3e; color: white; border: none; padding: 8px 14px; font-size: 16px; border-radius: 6px; cursor: pointer;">安全登出</button>
+      </div>
     </h2>
-    <div style="text-align: right;">
-      <!-- 系統設定與案件管理切換按鈕 -->
-      <button class="btn-outline hidden" id="btnTabSettings" onclick="switchAdminTab('settings')" style="margin-right: 10px; border-color:#3182ce; color:#3182ce;">⚙️ 系統設定</button>
-      <button class="btn-outline hidden" id="btnTabCases" onclick="switchAdminTab('cases')" style="margin-right: 10px; border-color:#38a169; color:#38a169;">📋 案件管理</button>
-      <button class="btn-outline" onclick="logout()">安全登出</button>
-    </div>
   </div>
 
   <!-- 既有的案件管理區塊 -->
@@ -112,6 +115,14 @@
         </thead>
         <tbody id="caseBody"></tbody>
       </table>
+      
+      <!-- 需求3：新增分頁控制區塊 -->
+      <div id="pagination-controls" style="text-align: center; margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 15px;">
+        <button id="btnPrevPage" onclick="prevPage()" class="btn-outline" style="padding: 8px 16px; font-size: 16px;" disabled>上一頁</button>
+        <span id="pageInfo" style="font-size: 16px; font-weight: bold; color: #4a5568;">第 1 頁 / 共 1 頁</span>
+        <button id="btnNextPage" onclick="nextPage()" class="btn-outline" style="padding: 8px 16px; font-size: 16px;" disabled>下一頁</button>
+      </div>
+      
     </div>
   </div>
 
@@ -237,6 +248,11 @@
   let g_activeCaseId = null; // 改用 caseId 追蹤目前處理的案件
   let g_currentSettings = null; 
   let g_isVerifyingToken = false;
+  
+  // ==== 需求3：新增分頁全域變數 ====
+  let currentPage = 1;
+  const itemsPerPage = 10;
+  // ==================================
 
   window.onload = async function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -363,13 +379,33 @@
     }
   }
 
-  // =========================================================
+// =========================================================
   // 案件渲染與操作 (完全對接 Firebase 的 caseId)
   // =========================================================
 
   function renderTable(cases) {
     const tbody = document.getElementById('caseBody');
-    tbody.innerHTML = cases.map(c => {
+
+    // ==== 需求3：分頁運算邏輯 ====
+    const totalPages = Math.ceil(cases.length / itemsPerPage) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const casesToShow = cases.slice(startIndex, endIndex); // 擷取當前頁面的 10 筆資料
+
+    // 更新分頁介面狀態
+    const pageInfo = document.getElementById('pageInfo');
+    const btnPrev = document.getElementById('btnPrevPage');
+    const btnNext = document.getElementById('btnNextPage');
+    if (pageInfo) pageInfo.innerText = `第 ${currentPage} 頁 / 共 ${totalPages} 頁`;
+    if (btnPrev) btnPrev.disabled = (currentPage === 1);
+    if (btnNext) btnNext.disabled = (currentPage === totalPages);
+    // ============================
+
+    // 注意：這裡改為迭代 casesToShow 而不是全部的 cases
+    tbody.innerHTML = casesToShow.map(c => {
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
       
       let actionBtnText = '填寫回覆'; 
@@ -392,8 +428,7 @@
       
       const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案' || c.status === '不成案');
       
-      // ⚠️ 關鍵修正：onclick 事件裡面的 c.caseId 是字串，必須用單引號包起來，否則 JavaScript 會報錯！
-    const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing('${c.caseId}')" style="padding:8px 12px; font-size:16px; margin-bottom:6px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;      
+      const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing('${c.caseId}')" style="padding:8px 12px; font-size:16px; margin-bottom:6px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;      
       const rejectBtnHtml = (c.status === '待驗證') ? `<button onclick="markRejected('${c.caseId}')" style="padding:8px 12px; font-size:16px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
       const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal('${c.caseId}')" style="padding:8px 12px; font-size:16px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
       return `<tr>
@@ -413,6 +448,23 @@
       </tr>`;
     }).join('');
   }
+
+  // ==== 需求3：新增分頁切換功能 ====
+  function prevPage() {
+    if (currentPage > 1) {
+      currentPage--;
+      renderTable(g_cases);
+    }
+  }
+
+  function nextPage() {
+    const totalPages = Math.ceil(g_cases.length / itemsPerPage) || 1;
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderTable(g_cases);
+    }
+  }
+  // ================================
 
   async function markProcessing(caseId) {
     const c = g_cases.find(x => x.caseId === caseId);

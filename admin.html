@@ -20,15 +20,7 @@
     table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 18px; }
     th, td { border: 1px solid #e2e8f0; padding: 16px 14px; text-align: left; vertical-align: middle; }
     th { background: #f7fafc; color: #4a5568; font-weight: bold; }
-    .status-badge { padding: 6px 14px; border-radius: 16px; font-size: 15px; font-weight: bold; color: white; background: #3182ce; display: inline-block; }
-    
-    /* 狀態標籤顏色設定 */
-    .tag-待驗證 { background: #feebc8; color: #c05621; }
-    .tag-已成案 { background: #bee3f8; color: #2b6cb0; }
-    .tag-處理中 { background: #e9d8fd; color: #6b46c1; }
-    .tag-已結案, .tag-結案 { background: #c6f6d5; color: #22543d; }
-    .tag-儲存回覆 { background: #3182ce; color: white; }
-    .tag-不成案 { background: #fed7d7; color: #c53030; }
+    .status-badge { padding: 6px 14px; border-radius: 16px; font-size: 15px; font-weight: bold; display: inline-block; }
     
     .reassign-select { margin-top: 8px; width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 16px; font-family: inherit; }
     
@@ -87,12 +79,10 @@
   <div class="card">
     <h2>
       <span>豐東國中民意信箱 - 管理後台</span>
-      <!-- 需求1：按鈕與狀態標籤放在同一個 flex 容器內，並排靠右 -->
       <div style="display: flex; align-items: center; gap: 12px; font-size: 18px;">
         <span class="user-badge" id="userInfo"></span>
         <button class="btn-outline hidden" id="btnTabSettings" onclick="switchAdminTab('settings')" style="border-color:#3182ce; color:#3182ce; padding: 8px 14px; font-size: 16px;">⚙️ 系統設定</button>
         <button class="btn-outline hidden" id="btnTabCases" onclick="switchAdminTab('cases')" style="border-color:#38a169; color:#38a169; padding: 8px 14px; font-size: 16px;">📋 案件管理</button>
-        <!-- 需求2：安全登出按鈕改為紅色背景、白色文字 -->
         <button onclick="logout()" style="background-color: #e53e3e; color: white; border: none; padding: 8px 14px; font-size: 16px; border-radius: 6px; cursor: pointer;">安全登出</button>
       </div>
     </h2>
@@ -116,7 +106,7 @@
         <tbody id="caseBody"></tbody>
       </table>
       
-      <!-- 需求3：新增分頁控制區塊 -->
+      <!-- 分頁控制區塊 -->
       <div id="pagination-controls" style="text-align: center; margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 15px;">
         <button id="btnPrevPage" onclick="prevPage()" class="btn-outline" style="padding: 8px 16px; font-size: 16px;" disabled>上一頁</button>
         <span id="pageInfo" style="font-size: 16px; font-weight: bold; color: #4a5568;">第 1 頁 / 共 1 頁</span>
@@ -126,7 +116,7 @@
     </div>
   </div>
 
-  <!-- 新增：圖形化系統設定區塊 -->
+  <!-- 圖形化系統設定區塊 -->
   <div id="view-settings" class="hidden">
     <div class="card">
       <h3 style="color:#2b6cb0; border-bottom:2px solid #ebf8ff; padding-bottom:10px; margin-top:0;">系統參數設定 (僅限全校管理員)</h3>
@@ -191,7 +181,7 @@
   </div>
 </div>
 
-<!-- 高級經典結案與回覆 Modal 視窗 -->
+<!-- 案件處理與結案回覆 Modal 視窗 -->
 <div id="replyModal" class="modal-overlay hidden">
   <div class="modal-box">
     <div class="modal-header">
@@ -241,18 +231,34 @@
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec";
   const SSO_LOGIN_URL = "https://sysop-coder.github.io/sso/"; 
 
- // ✨ 替換 g_activeRowIndex 為 g_activeCaseId
+  // ================= 狀態樣式與文字設定表 =================
+  const CASE_STATUS = {
+    PENDING_VERIFY: { label: '待驗證', bg: '#feebc8', color: '#c05621' },
+    VERIFIED:       { label: '已成案', bg: '#bee3f8', color: '#2b6cb0' },
+    PROCESSING:     { label: '處理中', bg: '#e9d8fd', color: '#6b46c1' },
+    SAVED_REPLY:    { label: '儲存回覆', bg: '#3182ce', color: '#ffffff' },
+    CLOSED:         { label: '已結案', bg: '#c6f6d5', color: '#22543d' },
+    REJECTED:       { label: '不成案', bg: '#fed7d7', color: '#c53030' }
+  };
+
+  function getStatusBadgeHtml(status) {
+    const normStatus = (status === '結案') ? '已結案' : status;
+    const config = Object.values(CASE_STATUS).find(s => s.label === normStatus) || 
+                   { label: status, bg: '#3182ce', color: '#ffffff' };
+    return `<span class="status-badge" style="background:${config.bg}; color:${config.color}">${config.label}</span>`;
+  }
+  // =======================================================
+
   let g_sessionKey = localStorage.getItem('adminSessionKey');
   let g_availableDepts = [];
   let g_cases = [];
-  let g_activeCaseId = null; // 改用 caseId 追蹤目前處理的案件
+  let g_activeCaseId = null; 
   let g_currentSettings = null; 
   let g_isVerifyingToken = false;
   
-  // ==== 需求3：新增分頁全域變數 ====
+  // 分頁全域變數
   let currentPage = 1;
   const itemsPerPage = 10;
-  // ==================================
 
   window.onload = async function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -261,12 +267,11 @@
     if (ssoToken) {
       await processSSOTokenWithRetry(ssoToken, 2); 
     } else if (g_sessionKey) {
-      // 🚀 提早解鎖：直接隱藏 loader，顯示主框架，讓使用者覺得「秒進」
       document.getElementById('loader').classList.add('hidden');
       document.getElementById('main-ui').classList.remove('hidden');
       document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#4a5568; font-weight:bold;">資料讀取中，請稍候... ⏳</td></tr>';
       
-      fetchCases(); // 拔掉 await，讓它在背景慢慢抓
+      fetchCases();
     } else {
       reloginSSO();
     }
@@ -283,9 +288,7 @@
     window.location.reload();
   }
 
-  // ✨ 關鍵優化：具備重試機制與防重複發送的 SSO 驗證
   async function processSSOTokenWithRetry(token, maxRetries = 2) {
-    // 防重複請求鎖：如果已經在驗證中，直接擋掉後續重複觸發
     if (g_isVerifyingToken) return;
     g_isVerifyingToken = true;
 
@@ -304,18 +307,15 @@
           window.history.replaceState({}, document.title, window.location.pathname);
           g_isVerifyingToken = false;
 
-          // 🚀 驗證成功瞬間提早解鎖畫面！
           document.getElementById('loader').classList.add('hidden');
           document.getElementById('main-ui').classList.remove('hidden');
           document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
           document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#4a5568; font-weight:bold;">身分驗證成功！案件資料讀取中... ⏳</td></tr>';
 
-          // 拔掉 await，讓抓取試算表資料在背景執行
           fetchCases();
           return; 
         }
         else if (json.message === "NOT_AUTHORIZED") {
-          // 白名單未授權：抹除 token 並停在提示畫面，不跳轉
           window.history.replaceState({}, document.title, window.location.pathname);
           document.getElementById('loader').classList.add('hidden');
           document.getElementById('unauthorized-card').classList.remove('hidden');
@@ -324,7 +324,6 @@
           return;
           
         } else {
-          // Token 真實無效或已過期
           if (attempt === maxRetries) {
             alert("登入驗證失敗：" + json.message);
             reloginSSO();
@@ -334,12 +333,10 @@
       } catch (e) {
         console.error(`SSO 驗證第 ${attempt} 次連線失敗:`, e);
         if (attempt === maxRetries) {
-          // 最後一次重試還是失敗，提示使用者自己 F5 重整
           alert("網路連線逾時，請檢查連線後重新整理頁面。");
           g_isVerifyingToken = false;
           return;
         }
-        // 遇到網路延遲掉進 catch 時，等待 1.5 秒後進行第二次救援重試
         await new Promise(r => setTimeout(r, 1500));
       }
     }
@@ -359,7 +356,6 @@
         g_cases = json.data;
         g_availableDepts = json.availableDepts;
         
-        // 確保防呆
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('main-ui').classList.remove('hidden');
         document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
@@ -374,37 +370,32 @@
         reloginSSO();
       }
     } catch (e) {
-      // 🚀 新增：萬一試算表讀取失敗，表格內要有對應的錯誤提示
       document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#e53e3e; font-weight:bold;">無法取得資料，請檢查網路連線後重新整理頁面。</td></tr>';
     }
   }
 
-// =========================================================
-  // 案件渲染與操作 (完全對接 Firebase 的 caseId)
+  // =========================================================
+  // 案件渲染與操作
   // =========================================================
 
   function renderTable(cases) {
     const tbody = document.getElementById('caseBody');
 
-    // ==== 需求3：分頁運算邏輯 ====
     const totalPages = Math.ceil(cases.length / itemsPerPage) || 1;
     if (currentPage > totalPages) currentPage = totalPages;
     if (currentPage < 1) currentPage = 1;
 
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const casesToShow = cases.slice(startIndex, endIndex); // 擷取當前頁面的 10 筆資料
+    const casesToShow = cases.slice(startIndex, endIndex);
 
-    // 更新分頁介面狀態
     const pageInfo = document.getElementById('pageInfo');
     const btnPrev = document.getElementById('btnPrevPage');
     const btnNext = document.getElementById('btnNextPage');
     if (pageInfo) pageInfo.innerText = `第 ${currentPage} 頁 / 共 ${totalPages} 頁`;
     if (btnPrev) btnPrev.disabled = (currentPage === 1);
     if (btnNext) btnNext.disabled = (currentPage === totalPages);
-    // ============================
 
-    // 注意：這裡改為迭代 casesToShow 而不是全部的 cases
     tbody.innerHTML = casesToShow.map(c => {
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
       
@@ -412,24 +403,28 @@
       let actionBtnBg = '#38a169'; 
       let showActionBtn = true; 
       
-      if (c.status === '待驗證') {
+      if (c.status === CASE_STATUS.PENDING_VERIFY.label) {
         showActionBtn = false; 
-      } else if (c.status === '處理中') {
+      } else if (c.status === CASE_STATUS.PROCESSING.label) {
         actionBtnText = '填寫回覆';
-      } else if (c.status === '儲存回覆') {
+      } else if (c.status === CASE_STATUS.SAVED_REPLY.label) {
         actionBtnText = '下一步：結案';
         actionBtnBg = '#3182ce'; 
-      } else if (c.status === '不成案') {
+      } else if (c.status === CASE_STATUS.REJECTED.label) {
         actionBtnText = '不成案';
         actionBtnBg = '#e53e3e'; 
-      } else if (c.status === '已結案' || c.status === '結案') {
+      } else if (c.status === CASE_STATUS.CLOSED.label || c.status === '結案') {
         actionBtnText = '已結案/變更修改';
       }
       
-      const hideProcessingBtn = (c.status === '處理中' || c.status === '儲存回覆' || c.status === '已結案' || c.status === '結案' || c.status === '不成案');
+      const hideProcessingBtn = (c.status === CASE_STATUS.PROCESSING.label || 
+                                 c.status === CASE_STATUS.SAVED_REPLY.label || 
+                                 c.status === CASE_STATUS.CLOSED.label || 
+                                 c.status === '結案' || 
+                                 c.status === CASE_STATUS.REJECTED.label);
       
       const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing('${c.caseId}')" style="padding:8px 12px; font-size:16px; margin-bottom:6px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;      
-      const rejectBtnHtml = (c.status === '待驗證') ? `<button onclick="markRejected('${c.caseId}')" style="padding:8px 12px; font-size:16px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
+      const rejectBtnHtml = (c.status === CASE_STATUS.PENDING_VERIFY.label) ? `<button onclick="markRejected('${c.caseId}')" style="padding:8px 12px; font-size:16px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
       const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal('${c.caseId}')" style="padding:8px 12px; font-size:16px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
       return `<tr>
         <td><strong style="color:#2b6cb0;">${c.caseId}</strong></td>
@@ -443,13 +438,12 @@
         </td>
         <td style="max-width:280px;"><strong>${c.subject}</strong><br><small style="color:#4a5568;">${c.content}</small></td>
         <td><strong>${c.name}</strong><br>${c.phone}</td>
-        <td><span class="status-badge tag-${c.status}">${c.status}</span></td>
+        <td>${getStatusBadgeHtml(c.status)}</td>
         <td>${processBtnHtml}${rejectBtnHtml}${actionBtnHtml}</td>
       </tr>`;
     }).join('');
   }
 
-  // ==== 需求3：新增分頁切換功能 ====
   function prevPage() {
     if (currentPage > 1) {
       currentPage--;
@@ -464,30 +458,29 @@
       renderTable(g_cases);
     }
   }
-  // ================================
 
   async function markProcessing(caseId) {
     const c = g_cases.find(x => x.caseId === caseId);
-    if (c) { c.status = '處理中'; renderTable(g_cases); }
-    executeUpdateRequest(caseId, '處理中', null, null, false);
+    if (c) { c.status = CASE_STATUS.PROCESSING.label; renderTable(g_cases); }
+    executeUpdateRequest(caseId, CASE_STATUS.PROCESSING.label, null, null, false);
   }
 
   async function markRejected(caseId) {
     if (!confirm("確定要將此案件直接標記為「不成案」嗎？")) return;
     const c = g_cases.find(x => x.caseId === caseId);
-    if (c) { c.status = '不成案'; renderTable(g_cases); }
-    executeUpdateRequest(caseId, '不成案', null, null, false);
+    if (c) { c.status = CASE_STATUS.REJECTED.label; renderTable(g_cases); }
+    executeUpdateRequest(caseId, CASE_STATUS.REJECTED.label, null, null, false);
   }
 
   function openReplyModal(caseId) {
     const c = g_cases.find(x => x.caseId === caseId);
     if (!c) return;
-    if (c.status === '待驗證') { alert('此案件尚未完成 Email 驗證，無法進行結案回覆！'); return; }
+    if (c.status === CASE_STATUS.PENDING_VERIFY.label) { alert('此案件尚未完成 Email 驗證，無法進行結案回覆！'); return; }
     
-    g_activeCaseId = caseId; // 鎖定目前處理的 caseId
+    g_activeCaseId = caseId;
     
     document.getElementById('modalCaseId').innerText = c.caseId;
-    document.getElementById('modalStatusBadge').innerHTML = `<span class="status-badge tag-${c.status}">${c.status}</span>`;
+    document.getElementById('modalStatusBadge').innerHTML = getStatusBadgeHtml(c.status);
     document.getElementById('modalDept').innerText = c.dept;
     document.getElementById('modalSubmitter').innerText = `${c.name} (${c.phone})`;
     document.getElementById('modalSubject').innerText = c.subject;
@@ -515,7 +508,7 @@
       if (!confirm("您尚未填寫任何處理紀錄或結案說明，確定要直接結案嗎？")) return;
     }
 
-    const newStatus = isCloseCase ? '已結案' : '儲存回覆';
+    const newStatus = isCloseCase ? CASE_STATUS.CLOSED.label : CASE_STATUS.SAVED_REPLY.label;
     const targetCaseId = g_activeCaseId; 
     closeReplyModal();
     
@@ -541,7 +534,6 @@
     executeUpdateRequest(caseId, null, null, newDept, false);
   }
 
-  // ✨ 關鍵修正：將 payload 的屬性從 rowIndex 改為 caseId
   async function executeUpdateRequest(caseId, status, note, newDept, sendEmailToUser) {
     try {
       const payload = { action: "adminUpdateCase", sessionKey: g_sessionKey, caseId: caseId };
@@ -560,31 +552,27 @@
     } catch (e) { alert("連線失敗，請檢查網路。"); }
   }
 
-
   // =========================================================
   // 系統參數設定專用控制邏輯 (GUI 版本)
   // =========================================================
   
-  // 防呆用的 HTML 脫逸處理
   function escapeHtml(text) {
     return (text || '').toString()
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
   }
 
-  // 產生唯一的 ID
   function generateId(prefix) { 
     return prefix + '_' + Math.random().toString(36).substr(2, 8); 
   }
 
-  // 切換分頁
   function switchAdminTab(tab) {
     if (tab === 'settings') {
       document.getElementById('view-cases').classList.add('hidden');
       document.getElementById('view-settings').classList.remove('hidden');
       document.getElementById('btnTabSettings').classList.add('hidden');
       document.getElementById('btnTabCases').classList.remove('hidden');
-      loadSettings(); // 切換時自動讀取最新設定
+      loadSettings();
     } else {
       document.getElementById('view-settings').classList.add('hidden');
       document.getElementById('view-cases').classList.remove('hidden');
@@ -593,13 +581,11 @@
     }
   }
 
-  // 讀取設定並渲染 GUI
   async function loadSettings() {
     const btn = document.getElementById('btnTabCases');
     btn.innerText = '讀取中...';
     btn.disabled = true;
 
-    // 🚀 優化體感：讓表格先顯示讀取中，避免畫面完全空白，讓使用者知道系統有在動
     document.getElementById('tbody-identities').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#4a5568; font-weight:bold;">資料讀取中，請稍候... ⏳</td></tr>';
     document.getElementById('tbody-issues').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#4a5568; font-weight:bold;">資料讀取中，請稍候... ⏳</td></tr>';
     document.getElementById('tbody-admins').innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#4a5568; font-weight:bold;">資料讀取中，請稍候... ⏳</td></tr>';
@@ -613,33 +599,28 @@
       const json = await res.json();
 
       if (json.success) {
-        // 🛡️ 防呆保護：如果 Firebase 沒資料回傳 null，給予預設空物件，防止畫面當機
         g_currentSettings = json.data || { identities: {}, issues: {}, admins: {} };
         renderAllSettings();
       } else {
         alert("讀取設定失敗：" + json.message);
-        renderAllSettings(); // 失敗也清空「讀取中」提示
+        renderAllSettings();
       }
     } catch (e) {
       console.error("設定讀取異常:", e);
-      // 網路異常時不直接 alert 卡死，顯示在表格內，體驗更好
-      document.getElementById('tbody-identities').innerHTML = '<tr><td colspan="3" style="text-align:center; color:#e53e3e; padding:15px;">連線失敗，請重新整理頁面</td></tr>';
-      document.getElementById('tbody-issues').innerHTML = '<tr><td colspan="6" style="text-align:center; color:#e53e3e; padding:15px;">連線失敗，請重新整理頁面</td></tr>';
-      document.getElementById('tbody-admins').innerHTML = '<tr><td colspan="5" style="text-align:center; color:#e53e3e; padding:15px;">連線失敗，請重新整理頁面</td></tr>';
+      document.getElementById('tbody-identities').innerHTML = '<tr><td colspan="3" style="text-align:color:#e53e3e; padding:15px;">連線失敗，請重新整理頁面</td></tr>';
+      document.getElementById('tbody-issues').innerHTML = '<tr><td colspan="6" style="text-align:color:#e53e3e; padding:15px;">連線失敗，請重新整理頁面</td></tr>';
+      document.getElementById('tbody-admins').innerHTML = '<tr><td colspan="5" style="text-align:color:#e53e3e; padding:15px;">連線失敗，請重新整理頁面</td></tr>';
     } finally {
-      // 🛡️ 關鍵修復：不管成功或失敗，一定要強制把右上角的按鈕復原！
       btn.innerText = '📋 案件管理';
       btn.disabled = false;
     }
   }
 
-  // 渲染所有表格
   function renderAllSettings() {
     document.getElementById('tbody-identities').innerHTML = '';
     document.getElementById('tbody-issues').innerHTML = '';
     document.getElementById('tbody-admins').innerHTML = '';
     
-    // 預防極端狀況的防呆
     if (!g_currentSettings) return;
 
     let hasIdentities = false, hasIssues = false, hasAdmins = false;
@@ -654,7 +635,6 @@
       Object.values(g_currentSettings.admins).forEach(data => { addAdminRow(data); hasAdmins = true; });
     }
 
-    // 🚀 優化體驗：如果該項目完全沒有資料，顯示「尚無資料」的友善提示，而不是留白
     if (!hasIdentities) {
       document.getElementById('tbody-identities').innerHTML = '<tr><td colspan="3" style="text-align:center; color:#718096; padding:15px;">尚無資料，請點擊下方新增</td></tr>';
     }
@@ -666,12 +646,10 @@
     }
   }
 
-  // 移除該列 DOM
   function removeRow(btn) {
     btn.closest('tr').remove();
   }
 
-  // 1. 新增身分類別
   function addIdentityRow(data = { id: generateId('id'), name: '', active: true }) {
     const tr = document.createElement('tr');
     tr.className = 'row-identity';
@@ -686,7 +664,6 @@
     document.getElementById('tbody-identities').appendChild(tr);
   }
 
-  // 2. 新增議題與派案
   function addIssueRow(data = { id: generateId('iss'), name: '', dept: '教務處', directorEmail: '', ccEmail: '', active: true }) {
     const depts = ['教務處', '學務處', '總務處', '輔導室', '校長室'];
     const deptSelect = `<select class="settings-select input-dept">${depts.map(d => `<option value="${d}" ${d === data.dept ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
@@ -707,7 +684,6 @@
     document.getElementById('tbody-issues').appendChild(tr);
   }
 
-  // 3. 新增管理員
   function addAdminRow(data = { email: '', name: '', deptPerm: '全校', active: true }) {
     const perms = ['全校', '全部處室', '教務處', '學務處', '總務處', '輔導室', '校長室'];
     const permSelect = `<select class="settings-select input-deptPerm">${perms.map(d => `<option value="${d}" ${d === data.deptPerm ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
@@ -726,13 +702,11 @@
     document.getElementById('tbody-admins').appendChild(tr);
   }
 
-  // 儲存設定 (從 GUI DOM 取值並打包)
   async function saveSettings() {
     if (!confirm("確定要儲存並覆寫所有系統設定嗎？民眾端選單也會同步更新。")) return;
     
     const newSettings = { identities: {}, issues: {}, admins: {} };
 
-    // 收集身分資料
     document.querySelectorAll('#tbody-identities .row-identity').forEach(row => {
       const id = row.dataset.id;
       const name = row.querySelector('.input-name').value.trim();
@@ -740,7 +714,6 @@
       if (name) newSettings.identities[id] = { id, name, active };
     });
 
-    // 收集議題資料
     document.querySelectorAll('#tbody-issues .row-issue').forEach(row => {
       const id = row.dataset.id;
       const name = row.querySelector('.input-name').value.trim();
@@ -748,19 +721,18 @@
       const directorEmail = row.querySelector('.input-director').value.trim().toLowerCase();
       const ccEmail = row.querySelector('.input-cc').value.trim().toLowerCase();
       const active = row.querySelector('.input-active').checked;
-      if (name && directorEmail) { // 議題名稱與主任信箱為必填
+      if (name && directorEmail) {
         newSettings.issues[id] = { id, name, dept, directorEmail, ccEmail, active };
       }
     });
 
-    // 收集管理員資料
     document.querySelectorAll('#tbody-admins .row-admin').forEach(row => {
       const email = row.querySelector('.input-email').value.trim().toLowerCase();
       const name = row.querySelector('.input-name').value.trim();
       const deptPerm = row.querySelector('.input-deptPerm').value;
       const active = row.querySelector('.input-active').checked;
       if (email && name) {
-        const key = email.replace(/\./g, '_'); // Firebase key 轉換
+        const key = email.replace(/\./g, '_');
         newSettings.admins[key] = { email, name, deptPerm, active };
       }
     });
@@ -775,7 +747,7 @@
 
       if (json.success) {
         alert("✅ 系統參數已成功儲存！");
-        loadSettings(); // 儲存後重新整理畫面
+        loadSettings();
       } else {
         alert("儲存失敗：" + json.message);
       }

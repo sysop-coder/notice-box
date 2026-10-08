@@ -709,7 +709,7 @@
 
   // 3. 新增管理員
   function addAdminRow(data = { email: '', name: '', deptPerm: '全校', active: true }) {
-    const perms = ['全校', '教務處', '學務處', '總務處', '輔導室', '校長室'];
+    const perms = ['全校', '全部處室', '教務處', '學務處', '總務處', '輔導室', '校長室'];
     const permSelect = `<select class="settings-select input-deptPerm">${perms.map(d => `<option value="${d}" ${d === data.deptPerm ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
     
     const tr = document.createElement('tr');

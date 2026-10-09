@@ -343,36 +343,40 @@
     g_isVerifyingToken = false;
   }
 
-  async function fetchCases() {
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "adminFetchCases", sessionKey: g_sessionKey }),
-        headers: { "Content-Type": "text/plain;charset=utf-8" }
-      });
-      const json = await res.json();
+  // 修改 admin.html 中的 fetchCases
+async function fetchCases() {
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "adminFetchCases", sessionKey: g_sessionKey }),
+      headers: { "Content-Type": "text/plain;charset=utf-8" }
+    });
+    const json = await res.json();
 
-      if (json.success) {
-        g_cases = json.data;
-        g_availableDepts = json.availableDepts;
-        
-        document.getElementById('loader').classList.add('hidden');
-        document.getElementById('main-ui').classList.remove('hidden');
-        document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
-        
-        if (json.user.deptPerm === '全校') {
-          document.getElementById('btnTabSettings').classList.remove('hidden');
-        }
+    if (json.success) {
+      g_cases = json.data;
+      g_availableDepts = json.availableDepts;
+      
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('main-ui').classList.remove('hidden');
+      document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
+      
+      if (json.user.deptPerm === '全校') {
+        document.getElementById('btnTabSettings').classList.remove('hidden');
+      }
 
-        renderTable(json.data);
-      } else {
-        alert("登入逾時或權限變更，請重新登入。");
+      renderTable(json.data);
+    } else {
+      // 🛡️ 改善：顯示後端真實回傳的錯誤，若是真的逾時才跳轉
+      alert("讀取案件失敗：" + json.message);
+      if (json.message && json.message.includes("登入逾時")) {
         reloginSSO();
       }
-    } catch (e) {
-      document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#e53e3e; font-weight:bold;">無法取得資料，請檢查網路連線後重新整理頁面。</td></tr>';
     }
+  } catch (e) {
+    document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#e53e3e; font-weight:bold;">無法取得資料，請檢查網路連線後重新整理頁面。</td></tr>';
   }
+}
 
   // =========================================================
   // 案件渲染與操作

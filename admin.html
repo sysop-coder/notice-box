@@ -265,8 +265,9 @@
     const ssoToken = urlParams.get('token');
 
     if (ssoToken) {
-      await processSSOTokenWithRetry(ssoToken, 2); 
+      await processSSOToken(ssoToken); // 移除 WithRetry 與第二個參數
     } else if (g_sessionKey) {
+// ...
       document.getElementById('loader').classList.add('hidden');
       document.getElementById('main-ui').classList.remove('hidden');
       document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#4a5568; font-weight:bold;">資料讀取中，請稍候... ⏳</td></tr>';
@@ -288,59 +289,75 @@
     window.location.reload();
   }
 
-  async function processSSOTokenWithRetry(token, maxRetries = 2) {
+  // ✨ 新版單次極速驗證機制（無重試、有 Timeout 防護、強制清理網址）
+  async function processSSOToken(token) {
     if (g_isVerifyingToken) return;
     g_isVerifyingToken = true;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const res = await fetch(API_URL, {
-          method: "POST",
-          body: JSON.stringify({ action: "verifySSO", token: token }),
-          headers: { "Content-Type": "text/plain;charset=utf-8" }
-        });
-        const json = await res.json();
+    // 建立 Timeout 控制器 (設定 15 秒逾時)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "verifySSO", token: token }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        signal: controller.signal // 綁定逾時中斷信號
+      });
+      clearTimeout(timeoutId); // 連線成功，解除逾時警報
+
+      const json = await res.json();
+      
+      if (json.success) {
+        g_sessionKey = json.sessionKey;
         
-        if (json.success) {
-          g_sessionKey = json.sessionKey;
+        try {
           localStorage.setItem('adminSessionKey', g_sessionKey);
-          window.history.replaceState({}, document.title, window.location.pathname);
-          g_isVerifyingToken = false;
+        } catch (e) {
+          console.warn("無痕模式或隱私設定阻擋了本地儲存，改用記憶體暫存");
+        }
+        
+        // 🛡️ 驗證成功，清除網址列上的 token
+        window.history.replaceState({}, document.title, window.location.pathname);
+        g_isVerifyingToken = false;
 
-          document.getElementById('loader').classList.add('hidden');
-          document.getElementById('main-ui').classList.remove('hidden');
-          document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
-          document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#4a5568; font-weight:bold;">身分驗證成功！案件資料讀取中... ⏳</td></tr>';
+        document.getElementById('loader').classList.add('hidden');
+        document.getElementById('main-ui').classList.remove('hidden');
+        document.getElementById('userInfo').innerText = `${json.user.deptPerm} - ${json.user.name}`;
+        document.getElementById('caseBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#4a5568; font-weight:bold;">身分驗證成功！案件資料讀取中... ⏳</td></tr>';
 
-          fetchCases();
-          return; 
-        }
-        else if (json.message === "NOT_AUTHORIZED") {
-          window.history.replaceState({}, document.title, window.location.pathname);
-          document.getElementById('loader').classList.add('hidden');
-          document.getElementById('unauthorized-card').classList.remove('hidden');
-          document.getElementById('unauth-msg').innerHTML = `您好，<strong>${json.displayName || '同仁'}</strong>（${json.email}）：<br>您的帳號目前<strong>尚未具備</strong>本信箱的管理查核權限。如需處理陳情案件，請聯繫校長室新增授權。`;
-          g_isVerifyingToken = false;
-          return;
-          
-        } else {
-          if (attempt === maxRetries) {
-            alert("登入驗證失敗：" + json.message);
-            reloginSSO();
-            return;
-          }
-        }
-      } catch (e) {
-        console.error(`SSO 驗證第 ${attempt} 次連線失敗:`, e);
-        if (attempt === maxRetries) {
-          alert("網路連線逾時，請檢查連線後重新整理頁面。");
-          g_isVerifyingToken = false;
-          return;
-        }
-        await new Promise(r => setTimeout(r, 1500));
+        setTimeout(() => { fetchCases(); }, 300);
+        
+      } else if (json.message === "NOT_AUTHORIZED") {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        document.getElementById('loader').classList.add('hidden');
+        document.getElementById('unauthorized-card').classList.remove('hidden');
+        document.getElementById('unauth-msg').innerHTML = `您好，<strong>${json.displayName || '同仁'}</strong>（${json.email}）：<br>您的帳號目前<strong>尚未具備</strong>本信箱的管理查核權限。如需處理陳情案件，請聯繫校長室新增授權。`;
+        g_isVerifyingToken = false;
+        
+      } else {
+        // 🛡️ 驗證失敗，一樣強制清除網址列，避免按 F5 重複撞牆
+        window.history.replaceState({}, document.title, window.location.pathname);
+        alert("登入驗證失敗：" + json.message);
+        reloginSSO();
       }
+
+    } catch (e) {
+      clearTimeout(timeoutId);
+      g_isVerifyingToken = false;
+      
+      // 🛡️ 網路斷線或逾時，清除網址列並提示
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      if (e.name === 'AbortError') {
+        alert("伺服器連線逾時（超過 15 秒），請檢查網路連線後重新登入。");
+      } else {
+        console.error("SSO 驗證連線失敗:", e);
+        alert("網路連線不穩定或異常，請重新登入。");
+      }
+      reloginSSO();
     }
-    g_isVerifyingToken = false;
   }
 
   // 修改 admin.html 中的 fetchCases

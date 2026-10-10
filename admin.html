@@ -48,6 +48,11 @@
     
     .btn-del { background: #fed7d7; color: #c53030; border: none; border-radius: 4px; padding: 8px 14px; cursor: pointer; font-size: 16px; font-weight: bold; }
     .btn-del:hover { background: #fc8181; color: white; }
+    /* ✨ 批次刪除相關 */
+    .batch-checkbox { width:18px; height:18px; cursor:pointer; }
+    .btn-delete-single { background:#fff5f5; color:#c53030; border:1px solid #feb2b2; padding:6px 10px; font-size:14px; border-radius:5px; cursor:pointer; margin-top:6px; width:100%; }
+    .btn-delete-single:hover { background:#e53e3e; color:white; }
+    #batchToolbar.hidden { display:none !important; }
 
     .switch { position: relative; display: inline-block; width: 50px; height: 28px; vertical-align: middle; }
     .switch input { opacity: 0; width: 0; height: 0; }
@@ -78,6 +83,7 @@
         <span class="user-badge" id="userInfo"></span>
         <button class="btn-outline hidden" id="btnTabSettings" onclick="switchAdminTab('settings')" style="border-color:#3182ce; color:#3182ce; padding: 8px 14px; font-size: 16px;">⚙️ 系統設定</button>
         <button class="btn-outline hidden" id="btnTabCases" onclick="switchAdminTab('cases')" style="border-color:#38a169; color:#38a169; padding: 8px 14px; font-size: 16px;">📋 案件管理</button>
+        <button class="btn-outline hidden" id="btnTabRecycle" onclick="switchAdminTab('recycle')" style="border-color:#e53e3e; color:#e53e3e; padding: 8px 14px; font-size: 16px;">🗑️ 回收筒</button>
         <button onclick="logout()" style="background-color: #e53e3e; color: white; border: none; padding: 8px 14px; font-size: 16px; border-radius: 6px; cursor: pointer;">安全登出</button>
       </div>
     </h2>
@@ -87,6 +93,20 @@
   <div id="view-cases">
     <div class="card">
       
+      <!-- ✨ 全校管理員 批次刪除工具列 -->
+      <div id="batchToolbar" class="hidden" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; background:#fff5f5; border:1px solid #fed7d7; padding:12px 16px; border-radius:6px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:bold; cursor:pointer;">
+            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" class="batch-checkbox"> 全選本頁
+          </label>
+          <span id="selectedCount" style="font-size:15px; color:#c53030; font-weight:bold;">已選 0 筆</span>
+          <span style="font-size:13px; color:#718096;">(僅限全校管理員)</span>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button id="btnBatchDelete" onclick="deleteBatchCases()" style="background:#e53e3e; color:white; padding:10px 18px; font-size:16px; border-radius:6px; border:none; cursor:pointer; font-weight:bold;">🗑️ 批次移至回收筒</button>
+        </div>
+      </div>
+
       <!-- 🔍 關鍵字搜尋框 -->
       <div style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
         <input type="text" id="searchInput" onkeyup="filterCases()" placeholder="🔍 搜尋案件編號、姓名或主旨..." style="padding: 10px; width: 300px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 16px;">
@@ -95,6 +115,7 @@
       <table id="caseTable">
         <thead>
           <tr>
+            <th id="thCheckbox" class="hidden" style="width:50px; text-align:center;"><input type="checkbox" id="headerSelectAll" onchange="toggleSelectAll(this)" class="batch-checkbox"></th>
             <th style="width: 130px;">案件編號</th>
             <th style="width: 100px;">日期</th>
             <th style="width: 140px;">主責處室</th>
@@ -114,6 +135,50 @@
         <button id="btnNextPage" onclick="nextPage()" class="btn-outline" style="padding: 8px 16px; font-size: 16px;" disabled>下一頁</button>
       </div>
       
+    </div>
+  </div>
+
+  <!-- ✨ 資源回收筒區塊 (僅全校) -->
+  <div id="view-recycle" class="hidden">
+    <div class="card">
+      <h3 style="color:#e53e3e; border-bottom:2px solid #fed7d7; padding-bottom:10px; margin-top:0;">🗑️ 資源回收筒 - 已軟刪除案件 (最多顯示200筆)</h3>
+      <p style="color:#718096; font-size:14px;">說明：此處案件已從前台移除，但仍可還原或永久刪除。僅全校系統管理員可操作。</p>
+      
+      <div id="recycleToolbar" style="margin:15px 0; display:flex; justify-content:space-between; align-items:center; background:#fffaf0; border:1px solid #feebc8; padding:12px 16px; border-radius:6px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:bold; cursor:pointer;">
+            <input type="checkbox" id="recycleSelectAll" onchange="toggleRecycleSelectAll(this)" class="batch-checkbox"> 全選本頁
+          </label>
+          <span id="recycleSelectedCount" style="font-size:15px; color:#c53030; font-weight:bold;">已選 0 筆</span>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button onclick="batchRestoreCases()" style="background:#38a169; color:white; padding:10px 18px; font-size:15px; border-radius:6px; border:none; cursor:pointer; font-weight:bold;">↩️ 批次還原</button>
+          <button onclick="batchPermanentDeleteCases()" style="background:#2d3748; color:white; padding:10px 18px; font-size:15px; border-radius:6px; border:none; cursor:pointer; font-weight:bold;">❌ 批次永久刪除</button>
+          <button onclick="fetchRecycleBin()" style="background:white; color:#4a5568; border:1px solid #cbd5e0; padding:10px 14px; font-size:14px; border-radius:6px; cursor:pointer;">🔄 重新整理</button>
+        </div>
+      </div>
+
+      <table id="recycleTable">
+        <thead>
+          <tr>
+            <th style="width:50px; text-align:center;"><input type="checkbox" id="recycleHeaderSelectAll" onchange="toggleRecycleSelectAll(this)" class="batch-checkbox"></th>
+            <th style="width:130px;">案件編號</th>
+            <th style="width:100px;">刪除時間</th>
+            <th style="width:140px;">原處室 / 刪除者</th>
+            <th>主旨與內容</th>
+            <th style="width:160px;">陳情人</th>
+            <th style="width:90px;">原狀態</th>
+            <th style="width:180px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="recycleBody"><tr><td colspan="8" style="text-align:center; padding:20px; color:#a0aec0;">尚未載入回收筒資料</td></tr></tbody>
+      </table>
+
+      <div id="recycle-pagination" style="text-align: center; margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 15px;">
+        <button id="btnRecyclePrev" onclick="recyclePrevPage()" class="btn-outline" style="padding: 8px 16px; font-size: 16px;" disabled>上一頁</button>
+        <span id="recyclePageInfo" style="font-size: 16px; font-weight: bold; color: #4a5568;">第 1 頁 / 共 1 頁</span>
+        <button id="btnRecycleNext" onclick="recycleNextPage()" class="btn-outline" style="padding: 8px 16px; font-size: 16px;" disabled>下一頁</button>
+      </div>
     </div>
   </div>
 
@@ -246,6 +311,7 @@
   let g_filteredCases = []; // ✨ 存放搜尋過濾後的案件
   let g_activeCaseId = null; 
   let g_currentSettings = null; 
+  let g_currentUser = null; // ✨ 系統管理員判斷用
   let g_isVerifyingToken = false;
   
   let currentPage = 1;
@@ -350,6 +416,7 @@
         g_cases = json.data;
         g_filteredCases = [...g_cases]; // ✨ 剛載入時，過濾清單等於完整清單
         g_availableDepts = json.availableDepts;
+        g_currentUser = json.user; // ✨ 儲存當前使用者
         
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('main-ui').classList.remove('hidden');
@@ -357,6 +424,13 @@
         
         if (json.user.deptPerm === '全校') {
           document.getElementById('btnTabSettings').classList.remove('hidden');
+          document.getElementById('btnTabRecycle').classList.remove('hidden');
+          document.getElementById('batchToolbar').classList.remove('hidden');
+          document.getElementById('thCheckbox').classList.remove('hidden');
+        } else {
+          document.getElementById('batchToolbar').classList.add('hidden');
+          document.getElementById('thCheckbox').classList.add('hidden');
+          document.getElementById('btnTabRecycle').classList.add('hidden');
         }
 
         renderTable(g_filteredCases); // ✨ 改傳入過濾後的清單
@@ -406,6 +480,8 @@
     if (btnPrev) btnPrev.disabled = (currentPage === 1);
     if (btnNext) btnNext.disabled = (currentPage === totalPages);
 
+    const isSuperAdmin = g_currentUser && g_currentUser.deptPerm === '全校';
+
     tbody.innerHTML = casesToShow.map(c => {
       const deptOptions = g_availableDepts.map(d => `<option value="${d}" ${d===c.dept?'selected':''}>${d}</option>`).join('');
       
@@ -436,7 +512,12 @@
       const processBtnHtml = hideProcessingBtn ? '' : `<button onclick="markProcessing('${c.caseId}')" style="padding:8px 12px; font-size:16px; margin-bottom:6px; width:100%; background:#805ad5; color:white; border:none; border-radius:6px; cursor:pointer;">標記處理中</button>`;      
       const rejectBtnHtml = (c.status === CASE_STATUS.PENDING_VERIFY.label) ? `<button onclick="markRejected('${c.caseId}')" style="padding:8px 12px; font-size:16px; width:100%; background:#e53e3e; color:white; border:none; border-radius:6px; cursor:pointer;">不成案</button>` : '';
       const actionBtnHtml = showActionBtn ? `<button onclick="openReplyModal('${c.caseId}')" style="padding:8px 12px; font-size:16px; background:${actionBtnBg}; width:100%; color:white; border:none; border-radius:6px; cursor:pointer;">${actionBtnText}</button>` : '';
-      return `<tr>
+      // ✨ 刪除按鈕 (僅全校)
+      const deleteBtnHtml = isSuperAdmin ? `<button class="btn-delete-single" onclick="deleteSingleCase('${c.caseId}')">🗑️ 移至回收筒</button>` : '';
+      const checkboxHtml = isSuperAdmin ? `<td style="text-align:center;"><input type="checkbox" class="batch-checkbox row-checkbox" value="${c.caseId}" onchange="updateSelectedCount()"></td>` : '';
+
+      const baseRow = `
+        ${checkboxHtml}
         <td><strong style="color:#2b6cb0;">${c.caseId}</strong></td>
         <td>${c.createdAt}</td>
         <td>
@@ -449,9 +530,13 @@
         <td style="max-width:280px;"><strong>${c.subject}</strong><br><small style="color:#4a5568;">${c.content}</small></td>
         <td><strong>${c.name}</strong><br>${c.phone}</td>
         <td>${getStatusBadgeHtml(c.status)}</td>
-        <td>${processBtnHtml}${rejectBtnHtml}${actionBtnHtml}</td>
-      </tr>`;
+        <td>${processBtnHtml}${rejectBtnHtml}${actionBtnHtml}${deleteBtnHtml}</td>
+      `;
+      return `<tr>${baseRow}</tr>`;
     }).join('');
+
+    // 渲染後同步全選狀態
+    updateSelectedCount();
   }
 
   function prevPage() {
@@ -562,6 +647,283 @@
     } catch (e) { alert("連線失敗，請檢查網路。"); }
   }
   
+  // ================= ✨ 單筆與批次刪除 (僅限全校) =================
+  function toggleSelectAll(source) {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+    // 同步兩個全選框
+    document.getElementById('selectAllCheckbox').checked = source.checked;
+    document.getElementById('headerSelectAll').checked = source.checked;
+    updateSelectedCount();
+  }
+
+  function updateSelectedCount() {
+    const checked = document.querySelectorAll('.row-checkbox:checked');
+    const countEl = document.getElementById('selectedCount');
+    if (countEl) countEl.innerText = `已選 ${checked.length} 筆`;
+    const btn = document.getElementById('btnBatchDelete');
+    if (btn) btn.disabled = checked.length === 0;
+  }
+
+  async function deleteSingleCase(caseId) {
+    if (!g_currentUser || g_currentUser.deptPerm !== '全校') {
+      alert('權限不足：僅限全校系統管理員可刪除案件');
+      return;
+    }
+    if (!confirm(`⚠️ 確定要將案件移至回收筒【${caseId}】嗎？\n此動作無法復原，相關驗證連結與冷卻鎖也會一併清除！`)) return;
+    // 二次確認
+    if (!confirm(`再次確認：移至回收筒 ${caseId} ？請謹慎操作。`)) return;
+
+    await executeDeleteRequest(caseId);
+  }
+
+  async function deleteBatchCases() {
+    if (!g_currentUser || g_currentUser.deptPerm !== '全校') {
+      alert('權限不足：僅限全校系統管理員可執行批次刪除');
+      return;
+    }
+    const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+    const caseIds = Array.from(checkedBoxes).map(cb => cb.value);
+    if (caseIds.length === 0) {
+      alert('請先勾選要刪除的案件');
+      return;
+    }
+    if (caseIds.length > 50) {
+      alert('批次刪除上限為 50 筆，請分批操作');
+      return;
+    }
+    if (!confirm(`⚠️ 確定要批次將以下 ${caseIds.length} 筆案件嗎？\n\n${caseIds.join(', ')}\n\n可在回收筒還原！`)) return;
+    const input = prompt(`請輸入「確定刪除」以確認批次刪除 ${caseIds.length} 筆案件：`);
+    if (input !== '確定刪除') {
+      alert('已取消批次刪除');
+      return;
+    }
+
+    await executeBatchDeleteRequest(caseIds);
+  }
+
+  async function executeDeleteRequest(caseId) {
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminDeleteCase", sessionKey: g_sessionKey, caseId: caseId }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(`✅ 案件 ${caseId} 已移至回收筒`);
+        // 前端立即移除
+        g_cases = g_cases.filter(c => c.caseId !== caseId);
+        g_filteredCases = g_filteredCases.filter(c => c.caseId !== caseId);
+        renderTable(g_filteredCases);
+      } else {
+        alert("刪除失敗：" + json.message);
+      }
+    } catch (e) {
+      alert("連線失敗，請檢查網路後重試");
+    }
+  }
+
+  async function executeBatchDeleteRequest(caseIds) {
+    const btn = document.getElementById('btnBatchDelete');
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '移至回收筒中... ⏳';
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminBatchDeleteCases", sessionKey: g_sessionKey, caseIds: caseIds }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+      if (json.success) {
+        const successCount = json.data ? json.data.successCount : caseIds.length;
+        alert(`✅ 已將 ${successCount} 筆案件移至回收筒`);
+        const idSet = new Set(caseIds);
+        g_cases = g_cases.filter(c => !idSet.has(c.caseId));
+        g_filteredCases = g_filteredCases.filter(c => !idSet.has(c.caseId));
+        document.getElementById('selectAllCheckbox').checked = false;
+        document.getElementById('headerSelectAll').checked = false;
+        renderTable(g_filteredCases);
+      } else {
+        alert("批次操作失敗：" + json.message);
+      }
+    } catch (e) {
+      alert("連線失敗，請檢查網路後重試");
+    } finally {
+      btn.disabled = false;
+      btn.innerText = originalText;
+    }
+  }
+
+  // ================= ✨ 資源回收筒功能 =================
+  let g_recycleCases = [];
+  let g_recycleFiltered = [];
+  let recycleCurrentPage = 1;
+  const recycleItemsPerPage = 10;
+
+  async function fetchRecycleBin() {
+    if (!g_currentUser || g_currentUser.deptPerm !== '全校') {
+      alert('僅限全校管理員可查看回收筒');
+      return;
+    }
+    document.getElementById('recycleBody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:25px;">回收筒資料讀取中... ⏳</td></tr>';
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminFetchRecycleBin", sessionKey: g_sessionKey }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+      if (json.success) {
+        g_recycleCases = json.data || [];
+        g_recycleFiltered = [...g_recycleCases];
+        recycleCurrentPage = 1;
+        renderRecycleTable(g_recycleFiltered);
+      } else {
+        alert("讀取回收筒失敗：" + json.message);
+      }
+    } catch (e) {
+      document.getElementById('recycleBody').innerHTML = '<tr><td colspan="8" style="text-align:center; color:#e53e3e;">連線失敗</td></tr>';
+    }
+  }
+
+  function renderRecycleTable(cases) {
+    const tbody = document.getElementById('recycleBody');
+    const totalPages = Math.ceil(cases.length / recycleItemsPerPage) || 1;
+    if (recycleCurrentPage > totalPages) recycleCurrentPage = totalPages;
+    if (recycleCurrentPage < 1) recycleCurrentPage = 1;
+    const start = (recycleCurrentPage - 1) * recycleItemsPerPage;
+    const end = start + recycleItemsPerPage;
+    const pageCases = cases.slice(start, end);
+
+    document.getElementById('recyclePageInfo').innerText = `第 ${recycleCurrentPage} 頁 / 共 ${totalPages} 頁`;
+    document.getElementById('btnRecyclePrev').disabled = recycleCurrentPage === 1;
+    document.getElementById('btnRecycleNext').disabled = recycleCurrentPage === totalPages;
+
+    if (pageCases.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#a0aec0;">回收筒目前沒有資料</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = pageCases.map(c => {
+      return `<tr>
+        <td style="text-align:center;"><input type="checkbox" class="batch-checkbox recycle-checkbox" value="${c.caseId}" onchange="updateRecycleCount()"></td>
+        <td><strong style="color:#2b6cb0;">${escapeHtml(c.caseId)}</strong></td>
+        <td>${escapeHtml(c.deletedAt||'')}<br><small style="color:#718096;">${escapeHtml(c.deletedByName||c.deletedBy||'')}</small></td>
+        <td><strong style="color:#e53e3e">${escapeHtml(c.dept||'')}</strong><br><small>原狀態:${escapeHtml(c.originalStatus||c.status||'')}</small></td>
+        <td style="max-width:280px;"><strong>${escapeHtml(c.subject||'')}</strong><br><small style="color:#4a5568;">${escapeHtml((c.content||'').substring(0,80))}</small></td>
+        <td><strong>${escapeHtml(c.name||'')}</strong><br>${escapeHtml(c.phone||'')}</td>
+        <td>${getStatusBadgeHtml(c.originalStatus||c.status||'')}</td>
+        <td>
+          <button onclick="restoreSingleCase('${c.caseId}')" style="padding:6px 10px; font-size:14px; background:#38a169; color:white; border:none; border-radius:5px; width:100%; margin-bottom:6px; cursor:pointer;">↩️ 還原</button>
+          <button onclick="permanentDeleteSingleCase('${c.caseId}')" style="padding:6px 10px; font-size:14px; background:#2d3748; color:white; border:none; border-radius:5px; width:100%; cursor:pointer;">❌ 永久刪除</button>
+        </td>
+      </tr>`;
+    }).join('');
+    updateRecycleCount();
+  }
+
+  function recyclePrevPage() { if (recycleCurrentPage>1){ recycleCurrentPage--; renderRecycleTable(g_recycleFiltered); } }
+  function recycleNextPage() { const total=Math.ceil(g_recycleFiltered.length/recycleItemsPerPage)||1; if(recycleCurrentPage<total){ recycleCurrentPage++; renderRecycleTable(g_recycleFiltered); } }
+
+  function toggleRecycleSelectAll(source) {
+    document.querySelectorAll('.recycle-checkbox').forEach(cb=>cb.checked=source.checked);
+    document.getElementById('recycleSelectAll').checked = source.checked;
+    document.getElementById('recycleHeaderSelectAll').checked = source.checked;
+    updateRecycleCount();
+  }
+  function updateRecycleCount() {
+    const cnt = document.querySelectorAll('.recycle-checkbox:checked').length;
+    const el = document.getElementById('recycleSelectedCount');
+    if (el) el.innerText = `已選 ${cnt} 筆`;
+  }
+
+  async function restoreSingleCase(caseId) {
+    if (!confirm(`確定要還原案件 ${caseId} 回主區嗎？`)) return;
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminRestoreCase", sessionKey: g_sessionKey, caseId: caseId }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(`✅ 已還原 ${caseId}`);
+        g_recycleCases = g_recycleCases.filter(c=>c.caseId!==caseId);
+        g_recycleFiltered = g_recycleFiltered.filter(c=>c.caseId!==caseId);
+        renderRecycleTable(g_recycleFiltered);
+        // 同步主列表
+        fetchCases();
+      } else alert("還原失敗："+json.message);
+    } catch (e) { alert("連線失敗"); }
+  }
+
+  async function permanentDeleteSingleCase(caseId) {
+    if (!confirm(`⚠️ 永久刪除 ${caseId}？此動作無法復原！`)) return;
+    const input = prompt('請輸入「永久刪除」以確認：');
+    if (input !== '永久刪除') { alert('已取消'); return; }
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminPermanentDeleteCase", sessionKey: g_sessionKey, caseId: caseId }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(`🗑️ 已永久刪除 ${caseId}`);
+        g_recycleCases = g_recycleCases.filter(c=>c.caseId!==caseId);
+        g_recycleFiltered = g_recycleFiltered.filter(c=>c.caseId!==caseId);
+        renderRecycleTable(g_recycleFiltered);
+      } else alert("刪除失敗："+json.message);
+    } catch (e) { alert("連線失敗"); }
+  }
+
+  async function batchRestoreCases() {
+    const ids = Array.from(document.querySelectorAll('.recycle-checkbox:checked')).map(cb=>cb.value);
+    if (ids.length===0){ alert('請先勾選'); return; }
+    if (!confirm(`確定還原 ${ids.length} 筆案件？`)) return;
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminBatchRestoreCases", sessionKey: g_sessionKey, caseIds: ids }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(`✅ 已還原 ${json.data.successCount} 筆`);
+        const set = new Set(ids);
+        g_recycleCases = g_recycleCases.filter(c=>!set.has(c.caseId));
+        g_recycleFiltered = g_recycleFiltered.filter(c=>!set.has(c.caseId));
+        renderRecycleTable(g_recycleFiltered);
+        fetchCases();
+      } else alert("批次還原失敗："+json.message);
+    } catch (e) { alert("連線失敗"); }
+  }
+
+  async function batchPermanentDeleteCases() {
+    const ids = Array.from(document.querySelectorAll('.recycle-checkbox:checked')).map(cb=>cb.value);
+    if (ids.length===0){ alert('請先勾選'); return; }
+    if (!confirm(`⚠️ 確定要永久刪除 ${ids.length} 筆？無法復原！`)) return;
+    const input = prompt('請輸入「永久刪除」以確認批次永久刪除：');
+    if (input !== '永久刪除'){ alert('已取消'); return; }
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "adminBatchPermanentDeleteCases", sessionKey: g_sessionKey, caseIds: ids }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(`🗑️ 已永久刪除 ${json.data.successCount} 筆`);
+        const set = new Set(ids);
+        g_recycleCases = g_recycleCases.filter(c=>!set.has(c.caseId));
+        g_recycleFiltered = g_recycleFiltered.filter(c=>!set.has(c.caseId));
+        renderRecycleTable(g_recycleFiltered);
+      } else alert("批次刪除失敗："+json.message);
+    } catch (e) { alert("連線失敗"); }
+  }
+
   function escapeHtml(text) {
     return (text || '').toString()
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -575,19 +937,30 @@
   function switchAdminTab(tab) {
     if (tab === 'settings') {
       document.getElementById('view-cases').classList.add('hidden');
+      document.getElementById('view-recycle').classList.add('hidden');
       document.getElementById('view-settings').classList.remove('hidden');
       document.getElementById('btnTabSettings').classList.add('hidden');
       document.getElementById('btnTabCases').classList.remove('hidden');
+      document.getElementById('btnTabRecycle').classList.remove('hidden');
       
-      // ✨ 關鍵修改：判斷是否為第一次載入，若 g_currentSettings 為空才向後台請求資料
       if (!g_currentSettings) {
         loadSettings();
       }
+    } else if (tab === 'recycle') {
+      document.getElementById('view-cases').classList.add('hidden');
+      document.getElementById('view-settings').classList.add('hidden');
+      document.getElementById('view-recycle').classList.remove('hidden');
+      document.getElementById('btnTabSettings').classList.remove('hidden');
+      document.getElementById('btnTabCases').classList.remove('hidden');
+      document.getElementById('btnTabRecycle').classList.add('hidden');
+      fetchRecycleBin();
     } else {
       document.getElementById('view-settings').classList.add('hidden');
+      document.getElementById('view-recycle').classList.add('hidden');
       document.getElementById('view-cases').classList.remove('hidden');
       document.getElementById('btnTabCases').classList.add('hidden');
       document.getElementById('btnTabSettings').classList.remove('hidden');
+      document.getElementById('btnTabRecycle').classList.remove('hidden');
     }
   }
 

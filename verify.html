@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>案件驗證 - 豐東國中民意信箱</title>
+  <style>
+    body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background-color: #f0f4f8; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; color: #2d3748; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); padding: 40px 30px; text-align: center; max-width: 500px; width: 90%; }
+    h2 { font-size: 26px; margin-top: 0; margin-bottom: 20px; }
+    .icon { font-size: 65px; margin-bottom: 20px; }
+    
+    /* 載入動畫 */
+    .loading-spinner { border: 5px solid #e2e8f0; border-top: 5px solid #3182ce; border-radius: 50%; width: 55px; height: 55px; animation: spin 1s linear infinite; margin: 0 auto 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    .message { font-size: 18px; line-height: 1.6; margin-bottom: 30px; color: #4a5568; }
+    
+    .btn { background-color: #3182ce; color: white; padding: 14px 28px; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; transition: 0.2s; }
+    .btn:hover { background-color: #2b6cb0; }
+    .btn-outline { background-color: white; color: #4a5568; border: 2px solid #cbd5e0; }
+    .btn-outline:hover { background-color: #edf2f7; }
+    
+    .hidden { display: none !important; }
+    .success-text { color: #38a169; }
+    .error-text { color: #e53e3e; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <!-- 狀態 1：載入中 -->
+    <div id="status-loading">
+      <div class="loading-spinner"></div>
+      <h2 style="color: #4a5568;">系統驗證中</h2>
+      <p class="message">正在與伺服器連線核對您的驗證碼，請稍候...</p>
+    </div>
+
+    <!-- 狀態 2：驗證成功 -->
+    <div id="status-success" class="hidden">
+      <div class="icon">✅</div>
+      <h2 class="success-text">驗證成功</h2>
+      <p class="message" id="success-msg">您的陳情案件已正式受理並分派。</p>
+      <a href="https://sysop-coder.github.io/notice-box/index.html" class="btn">返回首頁查詢進度</a>
+    </div>
+
+    <!-- 狀態 3：驗證失敗 -->
+    <div id="status-error" class="hidden">
+      <div class="icon">❌</div>
+      <h2 class="error-text">驗證失敗</h2>
+      <p class="message" id="error-msg">無效的驗證連結或已過期。</p>
+      <a href="https://sysop-coder.github.io/notice-box/index.html" class="btn btn-outline">返回首頁重新填寫</a>
+    </div>
+  </div>
+
+  <script>
+    // ⚠️ 替換為您的前台 GAS API 網址 (與 index.html 相同)
+    const API_URL = "https://script.google.com/macros/s/AKfycbw-5ME0dXrEDPHGZ60nU4MBZxy5sT2xLbbTINIUeKnSHsEH6fTCiJ3DqwQZ8rNnei6O/exec";
+
+    window.onload = async function() {
+      // 1. 從網址列抓取 token (例如 ?token=xxx)
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+
+      if (!token) {
+        showError("網址中缺少驗證碼，無法進行驗證。請確認您是點擊信件中的完整連結。");
+        return;
+      }
+
+      try {
+        // 2. 呼叫 GAS API 進行驗證
+        const res = await fetch(`${API_URL}?action=verifyToken&token=${token}`);
+        const json = await res.json();
+
+        if (json.success) {
+          showSuccess(json.message);
+        } else {
+          showError(json.message);
+        }
+      } catch (e) {
+        console.error(e);
+        showError("網路連線不穩定，請重新整理頁面再試一次。");
+      } finally {
+        // 3. ✨ 防呆關鍵：抹除網址列上的 token，避免民眾重新整理頁面重複送出
+        // 這會把網址從 verify.html?token=xxx 變成乾淨的 verify.html
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    function showSuccess(msg) {
+      document.getElementById('status-loading').classList.add('hidden');
+      document.getElementById('status-success').classList.remove('hidden');
+      if (msg) document.getElementById('success-msg').innerText = msg;
+    }
+
+    function showError(msg) {
+      document.getElementById('status-loading').classList.add('hidden');
+      document.getElementById('status-error').classList.remove('hidden');
+      if (msg) document.getElementById('error-msg').innerText = msg;
+    }
+  </script>
+</body>
+</html>

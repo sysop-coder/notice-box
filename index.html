@@ -66,13 +66,13 @@
       <div id="step-form" class="hidden">
         <h2>豐東民意信箱 - 意見函投遞</h2>
         <form id="mailForm" onsubmit="handleFormSubmit(event)">
-          <div class="form-group"><label>真實姓名 <span class="req">*</span></label><input type="text" id="name" maxlength="30" required></div>
+          <div class="form-group"><label>真實姓名 <span class="req">*</span></label><input type="text" id="name" required></div>
           <div class="form-group"><label>聯絡電話 <span class="req">*</span> <span class="hint">(日後查詢之憑證)</span></label><input type="text" id="phone" required></div>
           <div class="form-group"><label>電子信箱 <span class="req">*</span></label><input type="email" id="email" required></div>
           <div class="form-group"><label>身分類別 <span class="req">*</span></label><select id="identity" required><option value="">載入中...</option></select></div>
           <div class="form-group"><label>特定議題類別 <span class="req">*</span></label><select id="issue" required><option value="">載入中...</option></select></div>
-          <div class="form-group"><label>信件主旨 <span class="req">*</span></label><input type="text" id="subject" maxlength="100" required></div>
-          <div class="form-group"><label>具體內容 <span class="req">*</span></label><textarea id="content" maxlength="2000" required></textarea></div>
+          <div class="form-group"><label>信件主旨 <span class="req">*</span></label><input type="text" id="subject" required></div>
+          <div class="form-group"><label>具體內容 <span class="req">*</span></label><textarea id="content" required></textarea></div>
           <div style="text-align: right; margin-top: 25px;">
             <button type="button" class="btn btn-secondary" onclick="backToRules()">回上一步</button>
             <button type="submit" class="btn" id="submitBtn">送出</button>
@@ -106,6 +106,14 @@
         </div>
       </div>
     </div>
+
+    <!-- ✨ 新增：GitHub Pages 驗證區塊 (由 ?token= 觸發) -->
+    <div id="section-verify" class="hidden">
+      <h2>民意信箱 - 信箱驗證</h2>
+      <div id="verifyBox" style="font-size:18px; line-height:1.8; text-align:center; padding:20px 0;">
+        驗證中，請稍候... ⏳
+      </div>
+    </div>
   </div>
 </div>
 
@@ -114,10 +122,24 @@
   const API_URL = "https://script.google.com/macros/s/AKfycbxBHJQkbBM0aXBXO9OPPaKdHZAV7fF8WodVj03u_HlZsEmKQZ-Zp5pvI7gf6iB4uSZ7/exec"; 
   const FIREBASE_PUBLIC_URL = "https://notice-box-3705e-default-rtdb.asia-southeast1.firebasedatabase.app/public_settings.json";
 
-  // 初始化取得下拉選單 (改由 Firebase 極速載入)
+  // ✨ 初始化：支援 ?token= 驗證模式 (GitHub Pages 發信)
   window.onload = async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    // 若網址帶有 token，進入驗證模式
+    if (token) {
+      document.getElementById('section-write').classList.add('hidden');
+      document.getElementById('section-query').classList.add('hidden');
+      document.getElementById('section-verify').classList.remove('hidden');
+      const tabHeader = document.querySelector('.tab-header');
+      if (tabHeader) tabHeader.classList.add('hidden');
+      await handleTokenOnIndex(token);
+      return;
+    }
+
+    // 原有邏輯：載入下拉選單
     try {
-      // 直接向 Firebase 讀取公開選單資料，跳過 GAS 冷啟動
       const res = await fetch(FIREBASE_PUBLIC_URL);
       const data = await res.json();
       
@@ -132,6 +154,41 @@
       console.error(e);
     }
   };
+
+  // ✨ GitHub Pages 驗證處理 (防郵件掃描器誤觸)
+  async function handleTokenOnIndex(token){
+    const box = document.getElementById('verifyBox');
+    const safeToken = token.replace(/'/g, "\\'");
+    box.innerHTML = `
+      <div class="notice-box" style="text-align:left;">
+        <p>為確認您的電子信箱有效，請點擊下方按鈕完成驗證。</p>
+        <p style="color:#e53e3e; font-weight:bold; margin:0;">此步驟可防止郵件掃描器誤觸發驗證。</p>
+      </div>
+      <div style="margin-top:24px; text-align:center;">
+        <button class="btn" onclick="doVerify('${safeToken}')">確認驗證</button>
+      </div>
+    `;
+  }
+
+  async function doVerify(token){
+    const box = document.getElementById('verifyBox');
+    box.innerHTML = "驗證中，請稍候... ⏳";
+    try{
+      const res = await fetch(`${API_URL}?action=verifyToken&token=${encodeURIComponent(token)}`);
+      const json = await res.json();
+      if(json.success){
+        box.innerHTML = `<h3 style="color:#38a169; font-size:24px;">✓ ${json.message}</h3><p style="margin-top:16px; color:#4a5568;">案件已正式受理並分派至主責處室。</p><p style="margin-top:20px;"><a href="./" class="btn" style="text-decoration:none; display:inline-block;">回首頁</a></p>`;
+        // 清除網址 token，避免重新整理重複驗證
+        history.replaceState({}, document.title, location.pathname);
+      }else{
+        box.innerHTML = `<h3 style="color:#e53e3e; font-size:22px;">${json.message}</h3><p style="margin-top:16px;"><a href="./" class="btn" style="text-decoration:none; display:inline-block; background:#718096;">回首頁</a></p>`;
+      }
+    }catch(e){
+      console.error("驗證連線異常:", e);
+      const safeToken = token.replace(/'/g, "\\'");
+      box.innerHTML = `<p style="color:#e53e3e;">網路連線不穩定，請稍後再試。</p><button class="btn" onclick="doVerify('${safeToken}')">重新驗證</button>`;
+    }
+  }
 
   function switchTab(tab) {
     document.getElementById('section-write').classList.toggle('hidden', tab !== 'write');

@@ -692,12 +692,7 @@
       alert('批次刪除上限為 50 筆，請分批操作');
       return;
     }
-    if (!confirm(`⚠️ 確定要批次將以下 ${caseIds.length} 筆案件嗎？\n\n${caseIds.join(', ')}\n\n可在回收筒還原！`)) return;
-    const input = prompt(`請輸入「確定刪除」以確認批次刪除 ${caseIds.length} 筆案件：`);
-    if (input !== '確定刪除') {
-      alert('已取消批次刪除');
-      return;
-    }
+    if (!confirm(`⚠️ 確定要批次將以下 ${caseIds.length} 筆案件移至回收筒嗎？\n\n${caseIds.join(', ')}\n\n可在回收筒還原！`)) return;
 
     await executeBatchDeleteRequest(caseIds);
   }

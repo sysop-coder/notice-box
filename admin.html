@@ -91,6 +91,10 @@
   <!-- 既有的案件管理區塊 -->
   <div id="view-cases">
     <div class="card">
+      <!-- 🔍 新增：前端快速搜尋框 -->
+      <div style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
+        <input type="text" id="searchInput" onkeyup="filterCases()" placeholder="🔍 搜尋案件編號、姓名或主旨..." style="padding: 10px; width: 300px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 16px;">
+      </div>
       <table id="caseTable">
         <thead>
           <tr>
@@ -252,6 +256,7 @@
   let g_sessionKey = localStorage.getItem('adminSessionKey');
   let g_availableDepts = [];
   let g_cases = [];
+  let g_filteredCases = []; // ✨ 新增：用來存放搜尋過濾後的案件
   let g_activeCaseId = null; 
   let g_currentSettings = null; 
   let g_isVerifyingToken = false;
@@ -372,6 +377,7 @@ async function fetchCases() {
 
     if (json.success) {
       g_cases = json.data;
+      g_filteredCases = [...g_cases]; // ✨ 新增：剛載入時，過濾清單等於完整清單
       g_availableDepts = json.availableDepts;
       
       document.getElementById('loader').classList.add('hidden');
@@ -465,10 +471,35 @@ async function fetchCases() {
     }).join('');
   }
 
+// 🔍 案件搜尋過濾機制
+  let g_filteredCases = []; // 儲存過濾後的案件清單
+
+  function filterCases() {
+    const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+    
+    if (!keyword) {
+      // 如果沒輸入字，就顯示全部
+      g_filteredCases = g_cases; 
+    } else {
+      // 模糊比對：案件編號、姓名、主旨、內容
+      g_filteredCases = g_cases.filter(c => 
+        (c.caseId && c.caseId.toLowerCase().includes(keyword)) ||
+        (c.name && c.name.toLowerCase().includes(keyword)) ||
+        (c.subject && c.subject.toLowerCase().includes(keyword)) ||
+        (c.content && c.content.toLowerCase().includes(keyword))
+      );
+    }
+    
+    // 搜尋後強制切回第一頁，並使用過濾後的陣列來渲染
+    currentPage = 1;
+    renderTable(g_filteredCases);
+  }
+
+  
   function prevPage() {
     if (currentPage > 1) {
       currentPage--;
-      renderTable(g_cases);
+     renderTable(g_filteredCases); // ✨ 改為 g_filteredCases
     }
   }
 
@@ -476,22 +507,22 @@ async function fetchCases() {
     const totalPages = Math.ceil(g_cases.length / itemsPerPage) || 1;
     if (currentPage < totalPages) {
       currentPage++;
-      renderTable(g_cases);
+      renderTable(g_filteredCases); // ✨ 改為 g_filteredCases
     }
   }
 
   async function markProcessing(caseId) {
-    const c = g_cases.find(x => x.caseId === caseId);
-    if (c) { c.status = CASE_STATUS.PROCESSING.label; renderTable(g_cases); }
-    executeUpdateRequest(caseId, CASE_STATUS.PROCESSING.label, null, null, false);
-  }
+  const c = g_cases.find(x => x.caseId === caseId);
+  if (c) { c.status = CASE_STATUS.PROCESSING.label; renderTable(g_filteredCases); } // ✨ 改為 g_filteredCases
+  executeUpdateRequest(caseId, CASE_STATUS.PROCESSING.label, null, null, false);
+}
 
   async function markRejected(caseId) {
-    if (!confirm("確定要將此案件直接標記為「不成案」嗎？")) return;
-    const c = g_cases.find(x => x.caseId === caseId);
-    if (c) { c.status = CASE_STATUS.REJECTED.label; renderTable(g_cases); }
-    executeUpdateRequest(caseId, CASE_STATUS.REJECTED.label, null, null, false);
-  }
+  if (!confirm("確定要將此案件直接標記為「不成案」嗎？")) return;
+  const c = g_cases.find(x => x.caseId === caseId);
+  if (c) { c.status = CASE_STATUS.REJECTED.label; renderTable(g_filteredCases); } // ✨ 改為 g_filteredCases
+  executeUpdateRequest(caseId, CASE_STATUS.REJECTED.label, null, null, false);
+}
 
   function openReplyModal(caseId) {
     const c = g_cases.find(x => x.caseId === caseId);
@@ -532,15 +563,14 @@ async function fetchCases() {
     const newStatus = isCloseCase ? CASE_STATUS.CLOSED.label : CASE_STATUS.SAVED_REPLY.label;
     const targetCaseId = g_activeCaseId; 
     closeReplyModal();
-    
-    const c = g_cases.find(x => x.caseId === targetCaseId);
-    if (c) {
-      c.status = newStatus;
-      if (replyNotes) c.reply = replyNotes;
-      renderTable(g_cases);
-    }
-    executeUpdateRequest(targetCaseId, newStatus, replyNotes, null, sendEmailToUser);
+  const c = g_cases.find(x => x.caseId === targetCaseId);
+  if (c) {
+    c.status = newStatus;
+    if (replyNotes) c.reply = replyNotes;
+    renderTable(g_filteredCases); // ✨ 改為 g_filteredCases
   }
+  executeUpdateRequest(targetCaseId, newStatus, replyNotes, null, sendEmailToUser);
+}
 
   async function reassignCase(caseId, oldDept) {
     const selectEl = document.getElementById(`dept_${caseId}`);
@@ -551,9 +581,9 @@ async function fetchCases() {
       return;
     }
     const c = g_cases.find(x => x.caseId === caseId);
-    if (c) { c.dept = newDept; renderTable(g_cases); }
-    executeUpdateRequest(caseId, null, null, newDept, false);
-  }
+  if (c) { c.dept = newDept; renderTable(g_filteredCases); } // ✨ 改為 g_filteredCases
+  executeUpdateRequest(caseId, null, null, newDept, false);
+}
 
   async function executeUpdateRequest(caseId, status, note, newDept, sendEmailToUser) {
     try {

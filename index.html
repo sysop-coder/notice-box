@@ -66,13 +66,13 @@
       <div id="step-form" class="hidden">
         <h2>豐東民意信箱 - 意見函投遞</h2>
         <form id="mailForm" onsubmit="handleFormSubmit(event)">
-          <div class="form-group"><label>真實姓名 <span class="req">*</span></label><input type="text" id="name" required></div>
+          <div class="form-group"><label>真實姓名 <span class="req">*</span></label><input type="text" id="name" maxlength="30" required></div>
           <div class="form-group"><label>聯絡電話 <span class="req">*</span> <span class="hint">(日後查詢之憑證)</span></label><input type="text" id="phone" required></div>
           <div class="form-group"><label>電子信箱 <span class="req">*</span></label><input type="email" id="email" required></div>
           <div class="form-group"><label>身分類別 <span class="req">*</span></label><select id="identity" required><option value="">載入中...</option></select></div>
           <div class="form-group"><label>特定議題類別 <span class="req">*</span></label><select id="issue" required><option value="">載入中...</option></select></div>
-          <div class="form-group"><label>信件主旨 <span class="req">*</span></label><input type="text" id="subject" required></div>
-          <div class="form-group"><label>具體內容 <span class="req">*</span></label><textarea id="content" required></textarea></div>
+          <div class="form-group"><label>信件主旨 <span class="req">*</span></label><input type="text" id="subject" maxlength="100" required></div>
+          <div class="form-group"><label>具體內容 <span class="req">*</span></label><textarea id="content" maxlength="2000" required></textarea></div>
           <div style="text-align: right; margin-top: 25px;">
             <button type="button" class="btn btn-secondary" onclick="backToRules()">回上一步</button>
             <button type="submit" class="btn" id="submitBtn">送出</button>

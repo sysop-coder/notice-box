@@ -578,7 +578,11 @@
       document.getElementById('view-settings').classList.remove('hidden');
       document.getElementById('btnTabSettings').classList.add('hidden');
       document.getElementById('btnTabCases').classList.remove('hidden');
-      loadSettings();
+      
+      // ✨ 關鍵修改：判斷是否為第一次載入，若 g_currentSettings 為空才向後台請求資料
+      if (!g_currentSettings) {
+        loadSettings();
+      }
     } else {
       document.getElementById('view-settings').classList.add('hidden');
       document.getElementById('view-cases').classList.remove('hidden');

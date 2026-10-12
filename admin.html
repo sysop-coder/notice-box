@@ -670,9 +670,9 @@
       alert('權限不足：僅限全校系統管理員可刪除案件');
       return;
     }
-    if (!confirm(`⚠️ 確定要將案件移至回收筒【${caseId}】嗎？\n此動作無法復原，相關驗證連結與冷卻鎖也會一併清除！`)) return;
-    // 二次確認
-    if (!confirm(`再次確認：移至回收筒 ${caseId} ？請謹慎操作。`)) return;
+    if (!confirm(`⚠️ 確定要將案件【${caseId}】移至回收筒嗎？\n此為軟刪除，可於回收筒還原，相關驗證連結與冷卻鎖會一併清除。`)) return;
+    // 二次確認 - 文案與行為一致
+    if (!confirm(`再次確認：將 ${caseId} 移至回收筒？`)) return;
 
     await executeDeleteRequest(caseId);
   }

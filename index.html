@@ -155,19 +155,11 @@
     }
   };
 
-  // ✨ GitHub Pages 驗證處理 (防郵件掃描器誤觸)
+  // ✨ GitHub Pages 驗證處理 (自動驗證)
   async function handleTokenOnIndex(token){
-    const box = document.getElementById('verifyBox');
     const safeToken = token.replace(/'/g, "\\'");
-    box.innerHTML = `
-      <div class="notice-box" style="text-align:left;">
-        <p>為確認您的電子信箱有效，請點擊下方按鈕完成驗證。</p>
-        <p style="color:#e53e3e; font-weight:bold; margin:0;">此步驟可防止郵件掃描器誤觸發驗證。</p>
-      </div>
-      <div style="margin-top:24px; text-align:center;">
-        <button class="btn" onclick="doVerify('${safeToken}')">確認驗證</button>
-      </div>
-    `;
+    // 網頁載入時，直接呼叫驗證函式，不顯示按鈕
+    await doVerify(safeToken); 
   }
 
   async function doVerify(token){
